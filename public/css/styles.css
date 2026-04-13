@@ -35,7 +35,7 @@
     --border-radius-sm: 8px;
     
     /* Header */
-    --header-height: 70px;
+    --header-height: 56px;
     --bottom-nav-height: 65px;
 }
 
@@ -197,7 +197,8 @@ body.dark-mode .error-message {
     justify-content: space-between;
     padding: 0 var(--spacing-sm);
     z-index: 1000;
-    min-height: 70px;
+    min-height: 56px;
+    height: 56px;
 }
 
 .header-left {
@@ -227,24 +228,24 @@ body.dark-mode .error-message {
     gap: var(--spacing-xs);
     font-weight: 600;
     color: var(--primary-color);
-    overflow: visible;
+    overflow: hidden;
     max-width: calc(100vw - 200px);
     position: relative;
+    line-height: 1;
 }
 
 .logo img {
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
     object-fit: contain;
     flex-shrink: 0;
     display: block;
 }
 
 .logo span {
-    font-size: 1rem;
+    font-size: 0.95rem;
     white-space: nowrap;
     line-height: 1;
-    padding-top: 2px;
 }
 
 /* ===== RESPONSIVE LOGO FOR DESKTOP ===== */
@@ -255,8 +256,8 @@ body.dark-mode .error-message {
     }
 
     .logo img {
-        width: 32px;
-        height: 32px;
+        width: 26px;
+        height: 26px;
     }
 
     .logo span {
@@ -445,7 +446,7 @@ body.dark-mode .error-message {
     transition: left 0.3s ease;
     z-index: 999;
     overflow-y: auto;
-    min-height: calc(100vh - 70px);
+    min-height: calc(100vh - 56px);
 }
 
 .sidebar.active {
