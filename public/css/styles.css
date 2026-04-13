@@ -113,11 +113,13 @@ a {
 }
 
 .login-logo .logo-img {
-    width: 80px;
-    height: 80px;
+    width: 100px;
+    height: 100px;
     object-fit: contain;
     margin-bottom: var(--spacing-sm);
-    border-radius: 12px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .login-logo h1 {
@@ -229,11 +231,10 @@ body.dark-mode .error-message {
 }
 
 .logo img {
-    width: 36px;
-    height: 36px;
+    width: 42px;
+    height: 42px;
     object-fit: contain;
     flex-shrink: 0;
-    border-radius: 8px;
 }
 
 .logo span {
@@ -244,13 +245,13 @@ body.dark-mode .error-message {
 /* ===== RESPONSIVE LOGO FOR DESKTOP ===== */
 @media (min-width: 1024px) {
     .login-logo .logo-img {
-        width: 70px;
-        height: 70px;
+        width: 90px;
+        height: 90px;
     }
 
     .logo img {
-        width: 32px !important;
-        height: 32px !important;
+        width: 38px;
+        height: 38px;
     }
 }
 

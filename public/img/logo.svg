@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <!-- Gradientes -->
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0ea5e9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="shieldInner" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#38bdf8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#22d3ee;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#34d399;stop-opacity:1" />
+    </linearGradient>
+    <!-- Sombra suave -->
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- Escudo exterior -->
+  <path d="M100 15 L175 45 L175 110 Q175 160 100 185 Q25 160 25 110 L25 45 Z"
+        fill="url(#shieldGrad)" filter="url(#shadow)" stroke="#0369a1" stroke-width="3"/>
+
+  <!-- Escudo interior -->
+  <path d="M100 28 L162 52 L162 108 Q162 152 100 173 Q38 152 38 108 L38 52 Z"
+        fill="url(#shieldInner)" stroke="#7dd3fc" stroke-width="1.5"/>
+
+  <!-- Fondo interior del escudo -->
+  <path d="M100 38 L152 58 L152 106 Q152 145 100 164 Q48 145 48 106 L48 58 Z"
+        fill="#0c4a6e" opacity="0.85"/>
+
+  <!-- Cruz médica central -->
+  <rect x="90" y="55" width="20" height="55" rx="4" fill="#10b981"/>
+  <rect x="75" y="70" width="50" height="20" rx="4" fill="#10b981"/>
+
+  <!-- Líneas de pulso cardíaco (ECG) -->
+  <polyline points="55,115 70,115 78,95 88,135 96,105 104,125 112,100 120,115 145,115"
+            fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Silueta estilizada - persona de pie (arriba de la cruz) -->
+  <circle cx="100" cy="48" r="8" fill="#e0f2fe"/>
+  <path d="M94 56 Q100 62 106 56 L108 70 L103 70 L100 76 L97 70 L92 70 Z"
+        fill="#e0f2fe" opacity="0.9"/>
+
+  <!-- Banda inferior con texto -->
+  <path d="M38 140 Q38 136 45 133 L155 133 Q162 136 162 140 L162 155 Q162 160 155 162 L45 162 Q38 160 38 155 Z"
+        fill="url(#accentGrad)" stroke="#059669" stroke-width="1.5"/>
+
+  <!-- Texto "KF" en la banda -->
+  <text x="100" y="154" text-anchor="middle" font-family="Arial Black, Arial, sans-serif"
+        font-size="22" font-weight="bold" fill="#064e3b" letter-spacing="2">KF</text>
+
+  <!-- Iconos pequeños en la base -->
+  <!-- Mano (izquierda) -->
+  <path d="M58 170 Q58 165 62 165 L64 165 L64 160 Q64 158 66 158 Q68 158 68 160 L68 165 L70 165 Q74 165 74 170 Z"
+        fill="#38bdf8" opacity="0.8"/>
+  <!-- Corazón (centro) -->
+  <path d="M95 172 Q95 167 100 167 Q105 167 105 172 Q105 178 100 181 Q95 178 95 172 Z"
+        fill="#f43f5e" opacity="0.9"/>
+  <!-- Persona (derecha) -->
+  <circle cx="132" cy="167" r="3" fill="#38bdf8" opacity="0.8"/>
+  <path d="M128 172 Q132 176 136 172" fill="none" stroke="#38bdf8" stroke-width="2" opacity="0.8"/>
+
+  <!-- Texto superior decorativo -->
+  <text x="100" y="24" text-anchor="middle" font-family="Arial, sans-serif"
+        font-size="7" fill="#bae6fd" letter-spacing="1.5">DRA. KAREN FAJARDO</text>
+</svg>
