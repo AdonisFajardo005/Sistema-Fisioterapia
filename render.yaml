@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: dra-karen-fajardo
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: SESSION_MAX_AGE
+        value: 86400000
+    autoDeploy: true
+    healthCheckPath: /login.html

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dra. Karen Fajardo - Iniciar Sesión</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="login-page">
+    <div class="login-container">
+        <div class="login-logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="3"/>
+                    <path d="M50 25 L50 75 M35 40 L50 25 L65 40 M30 60 L70 60" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <h1>Dra. Karen Fajardo</h1>
+            <p>Sistema de Gestión de Fisioterapia</p>
+        </div>
+        
+        <form id="loginForm" class="login-form">
+            <div class="form-group">
+                <label for="username">Usuario</label>
+                <input type="text" id="username" name="username" required autocomplete="username" placeholder="Ingrese su usuario">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="Ingrese su contraseña">
+            </div>
+            
+            <div id="loginError" class="error-message" style="display: none;"></div>
+            
+            <button type="submit" class="btn btn-primary btn-large">
+                <span class="btn-text">Iniciar Sesión</span>
+                <span class="btn-loading" style="display: none;">
+                    <span class="spinner"></span>
+                </span>
+            </button>
+        </form>
+        
+        <div class="login-footer">
+            <p>Usuario por defecto: <strong>karen</strong> / <strong>karen2024</strong></p>
+        </div>
+    </div>
+    
+    <script src="/js/login.js"></script>
+</body>
+</html>
