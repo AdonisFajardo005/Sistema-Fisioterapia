@@ -229,6 +229,13 @@ body.dark-mode .error-message {
     width: 45px;
     height: 45px;
     object-fit: contain;
+    max-width: 45px;
+    max-height: 45px;
+}
+
+.logo span {
+    font-size: 1rem;
+    white-space: nowrap;
 }
 
 .header-right {
