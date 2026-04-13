@@ -89,7 +89,7 @@ router.get('/:id', (req, res) => {
  */
 router.post('/', (req, res) => {
     try {
-        const { name, phone, email, age, notes } = req.body;
+        const { name, cedula, gender, marital_status, address, phone, email, age, notes } = req.body;
 
         if (!name) {
             return res.status(400).json({ error: 'El nombre es requerido' });
@@ -97,9 +97,19 @@ router.post('/', (req, res) => {
 
         const db = getDb();
         const result = db.run(`
-            INSERT INTO patients (name, phone, email, age, notes)
-            VALUES (?, ?, ?, ?, ?)
-        `, [name, phone || null, email || null, age ? parseInt(age) : null, notes || null]);
+            INSERT INTO patients (name, cedula, gender, marital_status, address, phone, email, age, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+            name, 
+            cedula || null, 
+            gender || null, 
+            marital_status || null, 
+            address || null, 
+            phone || null, 
+            email || null, 
+            age ? parseInt(age) : null, 
+            notes || null
+        ]);
 
         res.status(201).json({
             id: result.lastInsertRowid,
@@ -118,7 +128,7 @@ router.post('/', (req, res) => {
  */
 router.put('/:id', (req, res) => {
     try {
-        const { name, phone, email, age, notes } = req.body;
+        const { name, cedula, gender, marital_status, address, phone, email, age, notes } = req.body;
 
         if (!name) {
             return res.status(400).json({ error: 'El nombre es requerido' });
@@ -127,9 +137,20 @@ router.put('/:id', (req, res) => {
         const db = getDb();
         const result = db.run(`
             UPDATE patients
-            SET name = ?, phone = ?, email = ?, age = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+            SET name = ?, cedula = ?, gender = ?, marital_status = ?, address = ?, phone = ?, email = ?, age = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        `, [name, phone || null, email || null, age ? parseInt(age) : null, notes || null, req.params.id]);
+        `, [
+            name,
+            cedula || null,
+            gender || null,
+            marital_status || null,
+            address || null,
+            phone || null,
+            email || null,
+            age ? parseInt(age) : null,
+            notes || null,
+            req.params.id
+        ]);
 
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Paciente no encontrado' });

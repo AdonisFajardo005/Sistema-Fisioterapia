@@ -261,6 +261,8 @@ function renderPatients() {
                 </div>
             </div>
             <div class="card-body">
+                ${patient.cedula ? `<p><strong>Cédula:</strong> ${escapeHtml(patient.cedula)}</p>` : ''}
+                ${patient.gender ? `<p><strong>Género:</strong> ${escapeHtml(patient.gender)}</p>` : ''}
                 ${patient.phone ? `<p><strong>Teléfono:</strong> ${escapeHtml(patient.phone)}</p>` : ''}
                 ${patient.email ? `<p><strong>Email:</strong> ${escapeHtml(patient.email)}</p>` : ''}
                 ${patient.age ? `<p><strong>Edad:</strong> ${patient.age} años</p>` : ''}
@@ -277,7 +279,7 @@ function renderPatients() {
 
 function showPatientForm(patient = null) {
     const isEdit = patient !== null;
-    
+
     showModal(
         isEdit ? 'Editar Paciente' : 'Nuevo Paciente',
         `
@@ -285,6 +287,34 @@ function showPatientForm(patient = null) {
                 <div class="form-group">
                     <label for="patientName">Nombre completo *</label>
                     <input type="text" id="patientName" value="${isEdit ? escapeHtml(patient.name) : ''}" required>
+                </div>
+                <div class="form-group">
+                    <label for="patientCedula">Cédula</label>
+                    <input type="text" id="patientCedula" value="${isEdit ? escapeHtml(patient.cedula || '') : ''}">
+                </div>
+                <div class="form-group">
+                    <label for="patientGender">Género</label>
+                    <select id="patientGender">
+                        <option value="">Seleccione...</option>
+                        <option value="masculino" ${isEdit && patient.gender === 'masculino' ? 'selected' : ''}>Masculino</option>
+                        <option value="femenino" ${isEdit && patient.gender === 'femenino' ? 'selected' : ''}>Femenino</option>
+                        <option value="otro" ${isEdit && patient.gender === 'otro' ? 'selected' : ''}>Otro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="patientMaritalStatus">Estado civil</label>
+                    <select id="patientMaritalStatus">
+                        <option value="">Seleccione...</option>
+                        <option value="soltero" ${isEdit && patient.marital_status === 'soltero' ? 'selected' : ''}>Soltero/a</option>
+                        <option value="casado" ${isEdit && patient.marital_status === 'casado' ? 'selected' : ''}>Casado/a</option>
+                        <option value="divorciado" ${isEdit && patient.marital_status === 'divorciado' ? 'selected' : ''}>Divorciado/a</option>
+                        <option value="viudo" ${isEdit && patient.marital_status === 'viudo' ? 'selected' : ''}>Viudo/a</option>
+                        <option value="union_libre" ${isEdit && patient.marital_status === 'union_libre' ? 'selected' : ''}>Unión libre</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="patientAddress">Dirección</label>
+                    <input type="text" id="patientAddress" value="${isEdit ? escapeHtml(patient.address || '') : ''}">
                 </div>
                 <div class="form-group">
                     <label for="patientPhone">Teléfono</label>
@@ -309,18 +339,22 @@ function showPatientForm(patient = null) {
             </form>
         `
     );
-    
+
     document.getElementById('patientForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const data = {
             name: document.getElementById('patientName').value,
+            cedula: document.getElementById('patientCedula').value,
+            gender: document.getElementById('patientGender').value,
+            marital_status: document.getElementById('patientMaritalStatus').value,
+            address: document.getElementById('patientAddress').value,
             phone: document.getElementById('patientPhone').value,
             email: document.getElementById('patientEmail').value,
             age: document.getElementById('patientAge').value,
             notes: document.getElementById('patientNotes').value
         };
-        
+
         try {
             if (isEdit) {
                 await api.put(`/api/patients/${patient.id}`, data);
@@ -367,15 +401,19 @@ async function viewPatientDetail(id) {
                 <div class="patient-detail">
                     <div class="mb-3">
                         <h3>Información Personal</h3>
+                        ${patient.cedula ? `<p><strong>Cédula:</strong> ${escapeHtml(patient.cedula)}</p>` : '<p><strong>Cédula:</strong> N/A</p>'}
+                        ${patient.gender ? `<p><strong>Género:</strong> ${escapeHtml(patient.gender)}</p>` : '<p><strong>Género:</strong> N/A</p>'}
+                        ${patient.marital_status ? `<p><strong>Estado civil:</strong> ${escapeHtml(patient.marital_status)}</p>` : '<p><strong>Estado civil:</strong> N/A</p>'}
+                        ${patient.address ? `<p><strong>Dirección:</strong> ${escapeHtml(patient.address)}</p>` : '<p><strong>Dirección:</strong> N/A</p>'}
                         <p><strong>Teléfono:</strong> ${escapeHtml(patient.phone || 'N/A')}</p>
                         <p><strong>Email:</strong> ${escapeHtml(patient.email || 'N/A')}</p>
                         <p><strong>Edad:</strong> ${patient.age || 'N/A'} años</p>
                         ${patient.notes ? `<p><strong>Notas:</strong> ${escapeHtml(patient.notes)}</p>` : ''}
                     </div>
-                    
+
                     <div class="mb-3">
                         <h3>Historial Clínico</h3>
-                        ${patient.clinicalHistory && patient.clinicalHistory.length > 0 
+                        ${patient.clinicalHistory && patient.clinicalHistory.length > 0
                             ? patient.clinicalHistory.map(h => `
                                 <div class="card mb-2">
                                     <div class="card-body">
@@ -389,7 +427,7 @@ async function viewPatientDetail(id) {
                             : '<p class="text-muted">Sin registros</p>'
                         }
                     </div>
-                    
+
                     <div class="mb-3">
                         <h3>Tratamientos</h3>
                         ${patient.treatments && patient.treatments.length > 0
@@ -406,7 +444,7 @@ async function viewPatientDetail(id) {
                             : '<p class="text-muted">Sin tratamientos</p>'
                         }
                     </div>
-                    
+
                     <div>
                         <h3>Citas</h3>
                         ${patient.appointments && patient.appointments.length > 0

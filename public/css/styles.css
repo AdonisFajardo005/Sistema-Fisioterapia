@@ -223,14 +223,15 @@ body.dark-mode .error-message {
     gap: var(--spacing-xs);
     font-weight: 600;
     color: var(--primary-color);
+    overflow: hidden;
+    max-width: calc(100vw - 200px);
 }
 
 .logo img {
     width: 45px;
     height: 45px;
     object-fit: contain;
-    max-width: 45px;
-    max-height: 45px;
+    flex-shrink: 0;
 }
 
 .logo span {

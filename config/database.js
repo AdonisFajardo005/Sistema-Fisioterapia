@@ -61,6 +61,10 @@ async function createTables() {
         `CREATE TABLE IF NOT EXISTS patients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
+            cedula TEXT UNIQUE,
+            gender TEXT,
+            marital_status TEXT,
+            address TEXT,
             phone TEXT,
             email TEXT,
             age INTEGER,
