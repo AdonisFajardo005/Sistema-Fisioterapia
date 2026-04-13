@@ -228,8 +228,8 @@ body.dark-mode .error-message {
 }
 
 .logo img {
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     object-fit: contain;
     flex-shrink: 0;
 }
@@ -242,13 +242,13 @@ body.dark-mode .error-message {
 /* ===== RESPONSIVE LOGO FOR DESKTOP ===== */
 @media (min-width: 1024px) {
     .login-logo .logo-img {
-        width: 100px;
-        height: 100px;
+        width: 80px;
+        height: 80px;
     }
 
     .logo img {
-        width: 40px;
-        height: 40px;
+        width: 32px !important;
+        height: 32px !important;
     }
 }
 
