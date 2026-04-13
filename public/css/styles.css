@@ -113,8 +113,8 @@ a {
 }
 
 .login-logo .logo-img {
-    width: 100px;
-    height: 100px;
+    width: 140px;
+    height: auto;
     object-fit: contain;
     margin-bottom: var(--spacing-sm);
     display: block;
@@ -235,8 +235,8 @@ body.dark-mode .error-message {
 }
 
 .logo img {
-    width: 28px;
-    height: 28px;
+    width: 36px;
+    height: 36px;
     object-fit: contain;
     flex-shrink: 0;
     display: block;
@@ -251,13 +251,13 @@ body.dark-mode .error-message {
 /* ===== RESPONSIVE LOGO FOR DESKTOP ===== */
 @media (min-width: 1024px) {
     .login-logo .logo-img {
-        width: 90px;
-        height: 90px;
+        width: 130px;
+        height: auto;
     }
 
     .logo img {
-        width: 26px;
-        height: 26px;
+        width: 34px;
+        height: 34px;
     }
 
     .logo span {
