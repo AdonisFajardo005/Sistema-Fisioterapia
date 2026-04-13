@@ -35,7 +35,7 @@
     --border-radius-sm: 8px;
     
     /* Header */
-    --header-height: 60px;
+    --header-height: 70px;
     --bottom-nav-height: 65px;
 }
 
@@ -197,6 +197,7 @@ body.dark-mode .error-message {
     justify-content: space-between;
     padding: 0 var(--spacing-sm);
     z-index: 1000;
+    min-height: 70px;
 }
 
 .header-left {
@@ -226,20 +227,24 @@ body.dark-mode .error-message {
     gap: var(--spacing-xs);
     font-weight: 600;
     color: var(--primary-color);
-    overflow: hidden;
+    overflow: visible;
     max-width: calc(100vw - 200px);
+    position: relative;
 }
 
 .logo img {
-    width: 42px;
-    height: 42px;
+    width: 50px;
+    height: 50px;
     object-fit: contain;
     flex-shrink: 0;
+    display: block;
 }
 
 .logo span {
     font-size: 1rem;
     white-space: nowrap;
+    line-height: 1;
+    padding-top: 2px;
 }
 
 /* ===== RESPONSIVE LOGO FOR DESKTOP ===== */
@@ -250,8 +255,12 @@ body.dark-mode .error-message {
     }
 
     .logo img {
-        width: 38px;
-        height: 38px;
+        width: 46px;
+        height: 46px;
+    }
+
+    .logo span {
+        padding-top: 0;
     }
 }
 
@@ -309,6 +318,7 @@ body.dark-mode .error-message {
     box-shadow: var(--shadow-lg);
     min-width: 250px;
     z-index: 1001;
+    min-height: auto;
 }
 
 .user-menu-header {
@@ -435,6 +445,7 @@ body.dark-mode .error-message {
     transition: left 0.3s ease;
     z-index: 999;
     overflow-y: auto;
+    min-height: calc(100vh - 70px);
 }
 
 .sidebar.active {
