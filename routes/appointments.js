@@ -113,39 +113,39 @@ router.get('/:id', (req, res) => {
  * POST /api/appointments
  * Crea una nueva cita
  */
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const { patient_id, date, time, notes } = req.body;
-        
+
         if (!patient_id || !date || !time) {
             return res.status(400).json({ error: 'Paciente, fecha y hora son requeridos' });
         }
-        
+
         const db = getDb();
-        
+
         // Verificar que el paciente existe
         const patient = db.get('SELECT id FROM patients WHERE id = ?', [patient_id]);
         if (!patient) {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }
-        
-        const result = run(`
-            INSERT INTO appointments (patient_id, date, time, notes) 
+
+        const result = await run(`
+            INSERT INTO appointments (patient_id, date, time, notes)
             VALUES (?, ?, ?, ?)
         `, [patient_id, date, time, notes || null]);
-        
+
         // Crear recordatorio automático
-        run(`
-            INSERT INTO reminders (patient_id, appointment_id, message, reminder_date) 
+        await run(`
+            INSERT INTO reminders (patient_id, appointment_id, message, reminder_date)
             VALUES (?, ?, ?, ?)
         `, [
-            patient_id, 
-            result.lastInsertRowid, 
+            patient_id,
+            result.lastInsertRowid,
             `Recordatorio: Cita programada para ${date} a las ${time}`,
             date
         ]);
-        
-        res.status(201).json({ 
+
+        res.status(201).json({
             id: result.lastInsertRowid,
             message: 'Cita creada exitosamente'
         });
@@ -159,13 +159,13 @@ router.post('/', (req, res) => {
  * PUT /api/appointments/:id
  * Actualiza una cita
  */
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
     try {
         const { patient_id, date, time, status, notes } = req.body;
-        
+
         const db = getDb();
-        const result = run(`
-            UPDATE appointments 
+        const result = await run(`
+            UPDATE appointments
             SET patient_id = ?, date = ?, time = ?, status = ?, notes = ?
             WHERE id = ?
         `, [patient_id, date, time, status || 'pendiente', notes || null, req.params.id]);
@@ -185,15 +185,15 @@ router.put('/:id', (req, res) => {
  * PATCH /api/appointments/:id/status
  * Actualiza solo el estado de una cita
  */
-router.patch('/:id/status', (req, res) => {
+router.patch('/:id/status', async (req, res) => {
     try {
         const { status } = req.body;
-        
+
         if (!['pendiente', 'completada', 'cancelada'].includes(status)) {
             return res.status(400).json({ error: 'Estado inválido' });
         }
-        
-        const result = run('UPDATE appointments SET status = ? WHERE id = ?', [status, req.params.id]);
+
+        const result = await run('UPDATE appointments SET status = ? WHERE id = ?', [status, req.params.id]);
 
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Cita no encontrada' });
@@ -210,9 +210,9 @@ router.patch('/:id/status', (req, res) => {
  * DELETE /api/appointments/:id
  * Elimina una cita
  */
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
     try {
-        const result = run('DELETE FROM appointments WHERE id = ?', [req.params.id]);
+        const result = await run('DELETE FROM appointments WHERE id = ?', [req.params.id]);
 
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Cita no encontrada' });

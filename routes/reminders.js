@@ -85,21 +85,21 @@ router.get('/count', (req, res) => {
  * POST /api/reminders
  * Crea un nuevo recordatorio
  */
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const { patient_id, appointment_id, message, reminder_date } = req.body;
-        
+
         if (!message || !reminder_date) {
             return res.status(400).json({ error: 'Mensaje y fecha son requeridos' });
         }
-        
+
         const db = getDb();
-        const result = run(`
-            INSERT INTO reminders (patient_id, appointment_id, message, reminder_date) 
+        const result = await run(`
+            INSERT INTO reminders (patient_id, appointment_id, message, reminder_date)
             VALUES (?, ?, ?, ?)
         `, [patient_id || null, appointment_id || null, message, reminder_date]);
-        
-        res.status(201).json({ 
+
+        res.status(201).json({
             id: result.lastInsertRowid,
             message: 'Recordatorio creado exitosamente'
         });
@@ -113,15 +113,15 @@ router.post('/', (req, res) => {
  * PATCH /api/reminders/:id/read
  * Marca un recordatorio como leído
  */
-router.patch('/:id/read', (req, res) => {
+router.patch('/:id/read', async (req, res) => {
     try {
         const db = getDb();
-        const result = run('UPDATE reminders SET is_read = 1 WHERE id = ?', [req.params.id]);
-        
+        const result = await run('UPDATE reminders SET is_read = 1 WHERE id = ?', [req.params.id]);
+
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Recordatorio no encontrado' });
         }
-        
+
         res.json({ message: 'Recordatorio marcado como leído' });
     } catch (error) {
         console.error('Error al marcar recordatorio:', error);
@@ -133,12 +133,12 @@ router.patch('/:id/read', (req, res) => {
  * PATCH /api/reminders/read-all
  * Marca todos los recordatorios como leídos
  */
-router.patch('/read-all', (req, res) => {
+router.patch('/read-all', async (req, res) => {
     try {
         const db = getDb();
-        const result = run('UPDATE reminders SET is_read = 1 WHERE is_read = 0');
-        
-        res.json({ 
+        const result = await run('UPDATE reminders SET is_read = 1 WHERE is_read = 0');
+
+        res.json({
             message: 'Todos los recordatorios marcados como leídos',
             updated: result.changes
         });
@@ -152,15 +152,15 @@ router.patch('/read-all', (req, res) => {
  * DELETE /api/reminders/:id
  * Elimina un recordatorio
  */
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
     try {
         const db = getDb();
-        const result = run('DELETE FROM reminders WHERE id = ?', [req.params.id]);
-        
+        const result = await run('DELETE FROM reminders WHERE id = ?', [req.params.id]);
+
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Recordatorio no encontrado' });
         }
-        
+
         res.json({ message: 'Recordatorio eliminado exitosamente' });
     } catch (error) {
         console.error('Error al eliminar recordatorio:', error);

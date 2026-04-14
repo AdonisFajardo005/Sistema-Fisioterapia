@@ -58,9 +58,9 @@ router.get('/:id', (req, res) => {
  * POST /api/clinical-history
  * Crea un nuevo registro en el historial clínico
  */
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
     try {
-        const { 
+        const {
             patient_id,
             personal_history,
             pathological_history,
@@ -89,7 +89,7 @@ router.post('/', (req, res) => {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }
 
-        const result = run(`
+        const result = await run(`
             INSERT INTO clinical_history (
                 patient_id,
                 personal_history,
@@ -137,9 +137,9 @@ router.post('/', (req, res) => {
  * PUT /api/clinical-history/:id
  * Actualiza un registro del historial clínico
  */
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
     try {
-        const { 
+        const {
             personal_history,
             pathological_history,
             pain_scale,
@@ -156,9 +156,9 @@ router.put('/:id', (req, res) => {
         } = req.body;
 
         const db = getDb();
-        const result = run(`
+        const result = await run(`
             UPDATE clinical_history
-            SET 
+            SET
                 personal_history = ?,
                 pathological_history = ?,
                 pain_scale = ?,
@@ -206,10 +206,10 @@ router.put('/:id', (req, res) => {
  * DELETE /api/clinical-history/:id
  * Elimina un registro del historial clínico
  */
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
     try {
         const db = getDb();
-        const result = run('DELETE FROM clinical_history WHERE id = ?', [req.params.id]);
+        const result = await run('DELETE FROM clinical_history WHERE id = ?', [req.params.id]);
 
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Registro de historial clínico no encontrado' });

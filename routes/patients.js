@@ -87,7 +87,7 @@ router.get('/:id', (req, res) => {
  * POST /api/patients
  * Crea un nuevo paciente
  */
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const { name, cedula, gender, marital_status, address, phone, email, age, notes } = req.body;
 
@@ -95,18 +95,18 @@ router.post('/', (req, res) => {
             return res.status(400).json({ error: 'El nombre es requerido' });
         }
 
-        const result = run(`
+        const result = await run(`
             INSERT INTO patients (name, cedula, gender, marital_status, address, phone, email, age, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
-            name, 
-            cedula || null, 
-            gender || null, 
-            marital_status || null, 
-            address || null, 
-            phone || null, 
-            email || null, 
-            age ? parseInt(age) : null, 
+            name,
+            cedula || null,
+            gender || null,
+            marital_status || null,
+            address || null,
+            phone || null,
+            email || null,
+            age ? parseInt(age) : null,
             notes || null
         ]);
 
@@ -124,7 +124,7 @@ router.post('/', (req, res) => {
  * PUT /api/patients/:id
  * Actualiza un paciente
  */
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
     try {
         const { name, cedula, gender, marital_status, address, phone, email, age, notes } = req.body;
 
@@ -132,7 +132,7 @@ router.put('/:id', (req, res) => {
             return res.status(400).json({ error: 'El nombre es requerido' });
         }
 
-        const result = run(`
+        const result = await run(`
             UPDATE patients
             SET name = ?, cedula = ?, gender = ?, marital_status = ?, address = ?, phone = ?, email = ?, age = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -164,14 +164,14 @@ router.put('/:id', (req, res) => {
  * DELETE /api/patients/:id
  * Elimina un paciente
  */
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
     try {
-        const result = run('DELETE FROM patients WHERE id = ?', [req.params.id]);
-        
+        const result = await run('DELETE FROM patients WHERE id = ?', [req.params.id]);
+
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }
-        
+
         res.json({ message: 'Paciente eliminado exitosamente' });
     } catch (error) {
         console.error('Error al eliminar paciente:', error);

@@ -135,28 +135,28 @@ router.get('/:id', (req, res) => {
  * POST /api/payments
  * Crea un nuevo registro de pago
  */
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const { patient_id, appointment_id, amount, status, payment_method, notes } = req.body;
-        
+
         if (!patient_id || !amount) {
             return res.status(400).json({ error: 'Paciente y monto son requeridos' });
         }
-        
+
         const db = getDb();
-        
+
         // Verificar que el paciente existe
         const patient = db.get('SELECT id FROM patients WHERE id = ?', [patient_id]);
         if (!patient) {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }
-        
-        const result = run(`
-            INSERT INTO payments (patient_id, appointment_id, amount, status, payment_method, notes) 
+
+        const result = await run(`
+            INSERT INTO payments (patient_id, appointment_id, amount, status, payment_method, notes)
             VALUES (?, ?, ?, ?, ?, ?)
         `, [patient_id, appointment_id || null, amount, status || 'pendiente', payment_method || null, notes || null]);
-        
-        res.status(201).json({ 
+
+        res.status(201).json({
             id: result.lastInsertRowid,
             message: 'Pago registrado exitosamente'
         });
@@ -170,21 +170,21 @@ router.post('/', (req, res) => {
  * PUT /api/payments/:id
  * Actualiza un pago
  */
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
     try {
         const { amount, status, payment_method, notes } = req.body;
-        
+
         const db = getDb();
-        const result = run(`
-            UPDATE payments 
+        const result = await run(`
+            UPDATE payments
             SET amount = ?, status = ?, payment_method = ?, notes = ?
             WHERE id = ?
         `, [amount, status || 'pendiente', payment_method || null, notes || null, req.params.id]);
-        
+
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Pago no encontrado' });
         }
-        
+
         res.json({ message: 'Pago actualizado exitosamente' });
     } catch (error) {
         console.error('Error al actualizar pago:', error);
@@ -196,20 +196,20 @@ router.put('/:id', (req, res) => {
  * PATCH /api/payments/:id/status
  * Actualiza solo el estado de un pago
  */
-router.patch('/:id/status', (req, res) => {
+router.patch('/:id/status', async (req, res) => {
     try {
         const { status } = req.body;
-        
+
         if (!['pagado', 'pendiente'].includes(status)) {
             return res.status(400).json({ error: 'Estado inválido' });
         }
-        
-        const result = run('UPDATE payments SET status = ? WHERE id = ?', [status, req.params.id]);
+
+        const result = await run('UPDATE payments SET status = ? WHERE id = ?', [status, req.params.id]);
 
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Pago no encontrado' });
         }
-        
+
         res.json({ message: 'Estado de pago actualizado' });
     } catch (error) {
         console.error('Error al actualizar estado:', error);
@@ -221,14 +221,14 @@ router.patch('/:id/status', (req, res) => {
  * DELETE /api/payments/:id
  * Elimina un registro de pago
  */
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
     try {
-        const result = run('DELETE FROM payments WHERE id = ?', [req.params.id]);
+        const result = await run('DELETE FROM payments WHERE id = ?', [req.params.id]);
 
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Pago no encontrado' });
         }
-        
+
         res.json({ message: 'Pago eliminado exitosamente' });
     } catch (error) {
         console.error('Error al eliminar pago:', error);
