@@ -1,6 +1,7 @@
 /**
  * Rutas de recordatorios y notificaciones por email
  * Incluye verificación automática de citas próximas
+ * Usa Brevo (Sendinblue) para envío de emails
  */
 
 const express = require('express');
@@ -8,18 +9,20 @@ const router = express.Router();
 const cron = require('node-cron');
 const { getDb } = require('../config/database');
 
-// Configurar Resend (servicio de email)
-let resend = null;
-if (process.env.RESEND_API_KEY) {
-    const { Resend } = require('resend');
-    resend = new Resend(process.env.RESEND_API_KEY);
-    console.log('✓ Servicio de email (Resend) configurado');
+// Configurar Brevo (servicio de email)
+let brevoApi = null;
+if (process.env.BREVO_API_KEY) {
+    const brevo = require('@getbrevo/brevo');
+    brevoApi = new brevo.TransactionalEmailsApi();
+    brevoApi.setApiKey(brevo.ApiKeyTypes.apiKey, process.env.BREVO_API_KEY);
+    console.log('✓ Servicio de email (Brevo) configurado');
 } else {
-    console.log('⚠ RESEND_API_KEY no configurada - los recordatorios por email no funcionarán');
+    console.log('⚠ BREVO_API_KEY no configurada - los recordatorios por email no funcionarán');
 }
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'karen@ejemplo.com';
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'adonis.fajardo@outlook.es';
+const FROM_NAME = 'Sistema de Gestión - Dra. Karen Fajardo';
 
 /**
  * GET /api/reminders
@@ -267,31 +270,30 @@ async function checkAndSendEmails(req, res) {
                     </div>
                 </div>
             `;
-            
-            try {
-                if (resend) {
-                    console.log(`📧 Enviando email a: ${ADMIN_EMAIL} desde: ${FROM_EMAIL}`);
-                    
-                    const { data, error } = await resend.emails.send({
-                        from: FROM_EMAIL,
-                        to: ADMIN_EMAIL,
-                        subject: subject,
-                        html: html
-                    });
 
-                    if (error) {
-                        console.error(`❌ Error Resend para ${appointment.patient_name}:`, JSON.stringify(error));
-                    } else {
-                        console.log(`✅ Email enviado para cita con ${appointment.patient_name}`);
-                        console.log(`📬 Email ID: ${data?.id}, Status: ${data?.status || 'N/A'}`);
-                        emailsSent.push(appointment.patient_name);
-                    }
+            try {
+                if (brevoApi) {
+                    console.log(`📧 Enviando email a: ${ADMIN_EMAIL} desde: ${FROM_EMAIL}`);
+
+                    const email = new brevo.SendSmtpEmail();
+                    email.sender = { email: FROM_EMAIL, name: FROM_NAME };
+                    email.to = [{ email: ADMIN_EMAIL }];
+                    email.subject = subject;
+                    email.htmlContent = html;
+
+                    const response = await brevoApi.sendTransacEmail(email);
+
+                    console.log(`✅ Email enviado para cita con ${appointment.patient_name}`);
+                    console.log(`📬 Email ID: ${response?.response?.body?.messageId || 'N/A'}`);
+                    emailsSent.push(appointment.patient_name);
                 } else {
-                    console.log(`⚠ Email NO enviado (Resend no configurado) - Cita con ${appointment.patient_name}`);
+                    console.log(`⚠ Email NO enviado (Brevo no configurado) - Cita con ${appointment.patient_name}`);
                 }
             } catch (emailError) {
                 console.error(`❌ Error enviando email para ${appointment.patient_name}:`, emailError.message);
-                console.error(`📋 Detalle completo:`, JSON.stringify(emailError));
+                if (emailError.response?.body) {
+                    console.error(`📋 Detalle completo:`, JSON.stringify(emailError.response.body));
+                }
             }
         }
         
@@ -311,7 +313,7 @@ async function checkAndSendEmails(req, res) {
 // VERIFICACIÓN AUTOMÁTICA CADA 5 MINUTOS
 // ============================================================
 
-if (resend) {
+if (brevoApi) {
     // Ejecutar cada 5 minutos: '*/5 * * * *'
     cron.schedule('*/5 * * * *', async () => {
         try {
@@ -319,17 +321,17 @@ if (resend) {
 
             const db = getDb();
             const nowUTC = new Date();
-            
+
             // Ajustar a hora local de Centroamérica (UTC-6)
-            const offsetHours = -6; 
+            const offsetHours = -6;
             const localNow = new Date(nowUTC.getTime() + (offsetHours * 60 * 60 * 1000));
-            
+
             const oneHourLater = new Date(localNow.getTime() + 60 * 60 * 1000);
 
             const currentDate = localNow.toISOString().split('T')[0];
             const currentTime = localNow.toISOString().split('T')[1].substring(0, 5);
             const futureTime = oneHourLater.toISOString().split('T')[1].substring(0, 5);
-            
+
             const upcomingAppointments = await db.all(`
                 SELECT a.id, a.date, a.time, p.name as patient_name, p.phone as patient_phone
                 FROM appointments a
@@ -340,25 +342,26 @@ if (resend) {
                 AND a.status != 'cancelada'
                 ORDER BY a.time ASC
             `, [currentDate, currentTime, futureTime]);
-            
+
             if (upcomingAppointments.length > 0) {
                 console.log(`📧 [AutoCheck] ${upcomingAppointments.length} cita(s) próxima(s). Enviando emails...`);
-                
+
                 for (const apt of upcomingAppointments) {
                     try {
-                        await resend.emails.send({
-                            from: FROM_EMAIL,
-                            to: ADMIN_EMAIL,
-                            subject: `🔔 Cita en 1 hora: ${apt.patient_name}`,
-                            html: `
-                                <div style="font-family: Arial, sans-serif; padding: 20px;">
-                                    <h2 style="color: #667eea;">🏥 Cita en 1 hora</h2>
-                                    <p><strong>Paciente:</strong> ${apt.patient_name}</p>
-                                    <p><strong>Hora:</strong> ${apt.time}</p>
-                                    ${apt.patient_phone ? `<p><strong>Teléfono:</strong> ${apt.patient_phone}</p>` : ''}
-                                </div>
-                            `
-                        });
+                        const email = new brevo.SendSmtpEmail();
+                        email.sender = { email: FROM_EMAIL, name: FROM_NAME };
+                        email.to = [{ email: ADMIN_EMAIL }];
+                        email.subject = `🔔 Cita en 1 hora: ${apt.patient_name}`;
+                        email.htmlContent = `
+                            <div style="font-family: Arial, sans-serif; padding: 20px;">
+                                <h2 style="color: #667eea;">🏥 Cita en 1 hora</h2>
+                                <p><strong>Paciente:</strong> ${apt.patient_name}</p>
+                                <p><strong>Hora:</strong> ${apt.time}</p>
+                                ${apt.patient_phone ? `<p><strong>Teléfono:</strong> ${apt.patient_phone}</p>` : ''}
+                            </div>
+                        `;
+
+                        await brevoApi.sendTransacEmail(email);
                         console.log(`✅ Email enviado: ${apt.patient_name}`);
                     } catch (e) {
                         console.error(`❌ Error enviando email: ${e.message}`);
@@ -369,10 +372,10 @@ if (resend) {
             console.error('❌ [AutoCheck] Error:', error.message);
         }
     });
-    
+
     console.log('⏰ Verificación automática de citas activada (cada 5 minutos)');
 } else {
-    console.log('⚠ Verificación automática desactivada (falta RESEND_API_KEY)');
+    console.log('⚠ Verificación automática desactivada (falta BREVO_API_KEY)');
 }
 
 module.exports = router;
