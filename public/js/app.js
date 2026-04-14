@@ -79,7 +79,11 @@ function formatTime(timeString) {
 }
 
 function formatCurrency(amount) {
-    return `$${parseFloat(amount).toFixed(2)}`;
+    // Formato para colones costarricenses (CRC)
+    return `₡${parseFloat(amount).toLocaleString('es-CR', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+    })}`;
 }
 
 function escapeHtml(text) {
@@ -1079,8 +1083,8 @@ function showPaymentForm(payment = null) {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="paymentAmount">Monto *</label>
-                    <input type="number" id="paymentAmount" step="0.01" min="0" value="${isEdit ? payment.amount : ''}" required>
+                    <label for="paymentAmount">Monto (₡) *</label>
+                    <input type="number" id="paymentAmount" step="1" min="0" placeholder="Ej: 50000" value="${isEdit ? payment.amount : ''}" required>
                 </div>
                 <div class="form-group">
                     <label for="paymentStatus">Estado</label>
