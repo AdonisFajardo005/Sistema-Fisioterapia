@@ -11,9 +11,10 @@ const bcrypt = require('bcryptjs');
 class PGDatabase {
     constructor(connectionString) {
         const { Pool } = require('pg');
+        // Usar SSL 'require' para producción (Neon, Supabase, etc.)
         this.pool = new Pool({
             connectionString,
-            ssl: { rejectUnauthorized: false }
+            ssl: 'require'
         });
         this.name = 'PostgreSQL';
     }
@@ -146,6 +147,12 @@ class PGDatabase {
                 reminder_date DATE NOT NULL,
                 is_read BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`,
+            // Tabla para almacenamiento de sesiones (connect-pg-simple)
+            `CREATE TABLE IF NOT EXISTS session (
+                sid VARCHAR NOT NULL PRIMARY KEY,
+                sess JSON NOT NULL,
+                expire TIMESTAMP NOT NULL
             )`
         ];
 

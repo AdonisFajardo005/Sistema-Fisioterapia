@@ -38,13 +38,27 @@ app.use(express.static(path.join(__dirname, 'public'), {
     maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0
 }));
 
-// Configuración de sesión
+// Configuración de sesión con almacenamiento persistente en producción
+let sessionStore;
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction && process.env.DATABASE_URL) {
+    // Usar PostgreSQL para almacenamiento de sesiones en producción
+    const pgSession = require('connect-pg-simple')(session);
+    sessionStore = new pgSession({
+        conString: process.env.DATABASE_URL,
+        tableName: 'session' // Nombre de la tabla para sesiones
+    });
+    console.log('✓ Sesiones almacenadas en PostgreSQL (producción)');
+}
+
 app.use(session({
+    store: sessionStore || undefined, // undefined usa MemoryStore en desarrollo (OK)
     secret: process.env.SESSION_SECRET || 'dra-karen-fajardo-secret-key-2024',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // true en producción con HTTPS
+        secure: isProduction, // true en producción con HTTPS
         httpOnly: true, // Previene acceso desde JavaScript
         sameSite: 'lax', // Protección CSRF
         maxAge: parseInt(process.env.SESSION_MAX_AGE) || 24 * 60 * 60 * 1000 // 24 horas
