@@ -4,7 +4,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { run, query } = require('../config/database');
+const { getDb, run, query } = require('../config/database');
 
 /**
  * GET /api/patients
