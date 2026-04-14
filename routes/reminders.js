@@ -53,7 +53,7 @@ router.get('/unread', async (req, res) => {
             SELECT r.*, p.name as patient_name
             FROM reminders r
             LEFT JOIN patients p ON r.patient_id = p.id
-            WHERE r.is_read = 0
+            WHERE r.is_read = FALSE
             ORDER BY r.created_at DESC
         `);
 
@@ -71,7 +71,7 @@ router.get('/unread', async (req, res) => {
 router.get('/count', async (req, res) => {
     try {
         const db = getDb();
-        const result = await db.get('SELECT COUNT(*) as count FROM reminders WHERE is_read = 0');
+        const result = await db.get('SELECT COUNT(*) as count FROM reminders WHERE is_read = FALSE');
 
         res.json({ count: result?.count || 0 });
     } catch (error) {
@@ -115,7 +115,7 @@ router.post('/', async (req, res) => {
 router.patch('/:id/read', async (req, res) => {
     try {
         const db = getDb();
-        const result = await run('UPDATE reminders SET is_read = 1 WHERE id = ?', [req.params.id]);
+        const result = await run('UPDATE reminders SET is_read = TRUE WHERE id = ?', [req.params.id]);
 
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Recordatorio no encontrado' });
@@ -135,7 +135,7 @@ router.patch('/:id/read', async (req, res) => {
 router.patch('/read-all', async (req, res) => {
     try {
         const db = getDb();
-        const result = await run('UPDATE reminders SET is_read = 1 WHERE is_read = 0');
+        const result = await run('UPDATE reminders SET is_read = TRUE WHERE is_read = FALSE');
 
         res.json({ message: `${result.changes} recordatorios marcados como leídos` });
     } catch (error) {
