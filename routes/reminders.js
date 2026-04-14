@@ -201,10 +201,10 @@ async function checkAndSendEmails(req, res) {
         console.log(`🕐 Hora UTC servidor: ${nowUTC.toISOString()}`);
         console.log(`🕐 Hora local ajustada: ${localNow.toISOString()}, Fecha: ${currentDate}`);
         console.log(`🔍 Buscando citas entre ${currentTime} y ${futureTime}`);
-        
+
         // Buscar citas de HOY que están en la próxima hora
         const upcomingAppointments = await db.all(`
-            SELECT 
+            SELECT
                 a.id,
                 a.date,
                 a.time,
@@ -220,7 +220,15 @@ async function checkAndSendEmails(req, res) {
             AND a.status != 'cancelada'
             ORDER BY a.time ASC
         `, [currentDate, currentTime, futureTime]);
+
+        // Log de depuración: mostrar todas las citas de hoy para comparar
+        const allTodayAppointments = await db.all(`
+            SELECT id, date, time, status FROM appointments WHERE date = ? ORDER BY time ASC
+        `, [currentDate]);
         
+        console.log(`📋 Todas las citas de hoy (${currentDate}):`, JSON.stringify(allTodayAppointments));
+        console.log(`📋 Citas encontradas en rango:`, upcomingAppointments.length);
+
         if (upcomingAppointments.length === 0) {
             console.log('✓ No hay citas en la próxima hora');
             return res.json({ 
