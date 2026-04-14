@@ -116,9 +116,8 @@ router.post('/', (req, res) => {
             message: 'Paciente creado exitosamente'
         });
     } catch (error) {
-        console.error('Error al crear paciente:', error.message);
-        console.error('Stack:', error.stack);
-        res.status(500).json({ error: 'Error interno del servidor' });
+        console.error('Error al crear paciente:', error);
+        res.status(500).json({ error: 'Error interno del servidor', details: error.message });
     }
 });
 
@@ -158,9 +157,8 @@ router.put('/:id', (req, res) => {
 
         res.json({ message: 'Paciente actualizado exitosamente' });
     } catch (error) {
-        console.error('Error al actualizar paciente:', error.message);
-        console.error('Stack:', error.stack);
-        res.status(500).json({ error: 'Error interno del servidor' });
+        console.error('Error al actualizar paciente:', error);
+        res.status(500).json({ error: 'Error interno del servidor', details: error.message });
     }
 });
 

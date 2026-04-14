@@ -370,7 +370,9 @@ function showPatientForm(patient = null) {
             closeModal();
             await loadPatients();
         } catch (error) {
-            showNotification('Error al guardar paciente', 'error');
+            console.error('Error al guardar paciente:', error);
+            const message = error.details || error.message || 'Error al guardar paciente';
+            showNotification(message, 'error');
         }
     });
 }
