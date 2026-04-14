@@ -63,6 +63,11 @@ function isAuthenticated(req, res, next) {
 // Rutas
 app.use('/api/auth', authRoutes);
 
+// Endpoint ping para mantener el servidor despierto (CronJob.org)
+app.get('/api/ping', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Ruta pública para verificación de recordatorios (llamada por CronJob.org)
 app.post('/api/reminders/check-email-reminders', reminderRoutes);
 

@@ -165,11 +165,20 @@ router.delete('/:id', async (req, res) => {
 });
 
 /**
- * POST /api/reminders/check-email-reminders
+ * POST/GET /api/reminders/check-email-reminders
  * Verifica citas próximas y envía emails de recordatorio (manual)
  * Accesible públicamente para ser llamado por CronJob.org
  */
 router.post('/check-email-reminders', async (req, res) => {
+    await checkAndSendEmails(req, res);
+});
+
+// También permitir GET para compatibilidad con CronJob.org
+router.get('/check-email-reminders', async (req, res) => {
+    await checkAndSendEmails(req, res);
+});
+
+async function checkAndSendEmails(req, res) {
     try {
         console.log('📧 Verificando citas próximas para recordatorios...');
         
@@ -264,12 +273,12 @@ router.post('/check-email-reminders', async (req, res) => {
             appointments: upcomingAppointments.map(a => a.patient_name),
             emailsSent: emailsSent
         });
-        
+
     } catch (error) {
         console.error('Error en verificación de recordatorios:', error);
         res.status(500).json({ error: 'Error interno del servidor', details: error.message });
     }
-});
+}
 
 // ============================================================
 // VERIFICACIÓN AUTOMÁTICA CADA 5 MINUTOS
