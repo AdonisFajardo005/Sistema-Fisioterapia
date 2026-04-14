@@ -25,9 +25,13 @@ const api = {
             window.location.href = '/login.html';
             return null;
         }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: 'Error del servidor' }));
+            throw error;
+        }
         return response.json();
     },
-    
+
     async post(url, data) {
         const response = await fetch(url, {
             method: 'POST',
@@ -38,29 +42,57 @@ const api = {
             window.location.href = '/login.html';
             return null;
         }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: 'Error del servidor' }));
+            throw error;
+        }
         return response.json();
     },
-    
+
     async put(url, data) {
         const response = await fetch(url, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
+        if (response.status === 401) {
+            window.location.href = '/login.html';
+            return null;
+        }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: 'Error del servidor' }));
+            throw error;
+        }
         return response.json();
     },
-    
+
     async patch(url, data) {
         const response = await fetch(url, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
+        if (response.status === 401) {
+            window.location.href = '/login.html';
+            return null;
+        }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: 'Error del servidor' }));
+            throw error;
+        }
         return response.json();
     },
-    
+
     async delete(url) {
         const response = await fetch(url, { method: 'DELETE' });
+        if (response.status === 401) {
+            window.location.href = '/login.html';
+            return null;
+        }
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: 'Error del servidor' }));
+            throw error;
+        }
         return response.json();
     }
 };
