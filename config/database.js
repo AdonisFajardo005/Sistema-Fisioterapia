@@ -1,6 +1,7 @@
 /**
  * Configuración de base de datos UNIVERSAL
  * PostgreSQL en producción (Neon) / SQLite en desarrollo local
+ * Convierte automáticamente ? a $1, $2 para PostgreSQL
  */
 
 const path = require('path');
@@ -15,6 +16,48 @@ class PGDatabase {
             ssl: { rejectUnauthorized: false }
         });
         this.name = 'PostgreSQL';
+    }
+
+    /**
+     * Convierte ? a $1, $2, $3 para PostgreSQL
+     */
+    _convert(sql, params = []) {
+        let converted = sql;
+        let paramIndex = 1;
+        // Reemplazar ? por $1, $2, etc. (manejar strings dentro de la query)
+        let inString = false;
+        let escape = false;
+        let result = '';
+        
+        for (let i = 0; i < converted.length; i++) {
+            const char = converted[i];
+            
+            if (escape) {
+                result += char;
+                escape = false;
+                continue;
+            }
+            
+            if (char === '\\') {
+                escape = true;
+                result += char;
+                continue;
+            }
+            
+            if (char === "'") {
+                inString = !inString;
+                result += char;
+                continue;
+            }
+            
+            if (!inString && char === '?') {
+                result += '$' + paramIndex++;
+            } else {
+                result += char;
+            }
+        }
+        
+        return { sql: result, params };
     }
 
     async initialize() {
@@ -112,39 +155,45 @@ class PGDatabase {
     }
 
     async createDefaultUser() {
-        const result = await this.pool.query('SELECT COUNT(*) FROM users');
+        const { sql, params } = this._convert('SELECT COUNT(*) FROM users', []);
+        const result = await this.pool.query(sql, params);
         const count = parseInt(result.rows[0].count);
         if (count === 0) {
             const hashedPassword = bcrypt.hashSync('karen2024', 10);
-            await this.pool.query(
-                'INSERT INTO users (username, password, name) VALUES ($1, $2, $3)',
+            const { sql: insertSql, params: insertParams } = this._convert(
+                'INSERT INTO users (username, password, name) VALUES (?, ?, ?)',
                 ['karen', hashedPassword, 'Dra. Karen Fajardo']
             );
+            await this.pool.query(insertSql, insertParams);
             console.log('✓ Usuario por defecto creado (karen / karen2024)');
         }
     }
 
     async query(sql, params = []) {
-        const result = await this.pool.query(sql, params);
+        const { sql: convertedSql, params: convertedParams } = this._convert(sql, params);
+        const result = await this.pool.query(convertedSql, convertedParams);
         return result.rows;
     }
 
     async run(sql, params = []) {
+        const { sql: convertedSql, params: convertedParams } = this._convert(sql, params);
         if (sql.trim().toUpperCase().startsWith('INSERT')) {
-            const result = await this.pool.query(sql + ' RETURNING id', params);
+            const result = await this.pool.query(convertedSql + ' RETURNING id', convertedParams);
             return { lastInsertRowid: result.rows[0]?.id || null, changes: result.rowCount || 0 };
         }
-        const result = await this.pool.query(sql, params);
+        const result = await this.pool.query(convertedSql, convertedParams);
         return { lastInsertRowid: null, changes: result.rowCount || 0 };
     }
 
     async get(sql, params = []) {
-        const result = await this.pool.query(sql, params);
+        const { sql: convertedSql, params: convertedParams } = this._convert(sql, params);
+        const result = await this.pool.query(convertedSql, convertedParams);
         return result.rows[0] || null;
     }
 
     async all(sql, params = []) {
-        const result = await this.pool.query(sql, params);
+        const { sql: convertedSql, params: convertedParams } = this._convert(sql, params);
+        const result = await this.pool.query(convertedSql, convertedParams);
         return result.rows;
     }
 
