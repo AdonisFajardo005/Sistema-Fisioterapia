@@ -11,10 +11,10 @@ const { run, query } = require('../config/database');
  * GET /api/clinical-history/patient/:patient_id
  * Obtiene el historial clínico de un paciente
  */
-router.get('/patient/:patient_id', (req, res) => {
+router.get('/patient/:patient_id', async (req, res) => {
     try {
         const db = getDb();
-        const history = db.all(`
+        const history = await db.all(`
             SELECT * FROM clinical_history
             WHERE patient_id = ?
             ORDER BY created_at DESC
@@ -31,11 +31,11 @@ router.get('/patient/:patient_id', (req, res) => {
  * GET /api/clinical-history/:id
  * Obtiene un registro específico del historial clínico
  */
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
         const db = getDb();
-        const history = db.get(`
-            SELECT 
+        const history = await db.get(`
+            SELECT
                 ch.*,
                 p.name as patient_name
             FROM clinical_history ch
@@ -84,7 +84,7 @@ router.post('/', async (req, res) => {
         const db = getDb();
 
         // Verificar que el paciente existe
-        const patient = db.get('SELECT id FROM patients WHERE id = ?', [patient_id]);
+        const patient = await db.get('SELECT id FROM patients WHERE id = ?', [patient_id]);
         if (!patient) {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }

@@ -11,29 +11,29 @@ const { run, query } = require('../config/database');
  * GET /api/treatments
  * Obtiene todos los tratamientos con filtros opcionales
  */
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const db = getDb();
         const { patient_id } = req.query;
-        
+
         let query = `
-            SELECT 
+            SELECT
                 t.*,
                 p.name as patient_name
             FROM treatments t
             JOIN patients p ON t.patient_id = p.id
         `;
-        
+
         if (patient_id) {
             query += ' WHERE t.patient_id = ?';
         }
-        
+
         query += ' ORDER BY t.session_date DESC';
-        
-        const treatments = patient_id 
-            ? db.all(query, [patient_id])
-            : db.all(query);
-        
+
+        const treatments = patient_id
+            ? await db.all(query, [patient_id])
+            : await db.all(query);
+
         res.json(treatments);
     } catch (error) {
         console.error('Error al obtener tratamientos:', error);
@@ -45,11 +45,11 @@ router.get('/', (req, res) => {
  * GET /api/treatments/:id
  * Obtiene un tratamiento específico
  */
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
         const db = getDb();
-        const treatment = db.get(`
-            SELECT 
+        const treatment = await db.get(`
+            SELECT
                 t.*,
                 p.name as patient_name
             FROM treatments t
@@ -83,7 +83,7 @@ router.post('/', async (req, res) => {
         const db = getDb();
 
         // Verificar que el paciente existe
-        const patient = db.get('SELECT id FROM patients WHERE id = ?', [patient_id]);
+        const patient = await db.get('SELECT id FROM patients WHERE id = ?', [patient_id]);
         if (!patient) {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }
@@ -157,12 +157,12 @@ router.delete('/:id', async (req, res) => {
  * GET /api/treatments/history/:patient_id
  * Obtiene el historial clínico de un paciente
  */
-router.get('/history/:patient_id', (req, res) => {
+router.get('/history/:patient_id', async (req, res) => {
     try {
         const db = getDb();
-        const history = db.all(`
-            SELECT * FROM clinical_history 
-            WHERE patient_id = ? 
+        const history = await db.all(`
+            SELECT * FROM clinical_history
+            WHERE patient_id = ?
             ORDER BY created_at DESC
         `, [req.params.patient_id]);
         

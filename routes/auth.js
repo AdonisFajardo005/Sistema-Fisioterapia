@@ -20,8 +20,8 @@ router.post('/login', async (req, res) => {
         }
         
         const db = getDb();
-        const user = db.get('SELECT * FROM users WHERE username = ?', [username]);
-        
+        const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
+
         if (!user) {
             return res.status(401).json({ error: 'Credenciales inválidas' });
         }

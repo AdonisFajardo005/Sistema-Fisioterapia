@@ -11,7 +11,7 @@ const { run, query } = require('../config/database');
  * GET /api/appointments
  * Obtiene todas las citas con filtros opcionales
  */
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const db = getDb();
         const { status, date, patient_id } = req.query;
@@ -48,7 +48,7 @@ router.get('/', (req, res) => {
         
         query += ' ORDER BY a.date DESC, a.time DESC';
         
-        const appointments = db.all(query, params);
+        const appointments = await db.all(query, params);
         res.json(appointments);
     } catch (error) {
         console.error('Error al obtener citas:', error);
@@ -60,12 +60,12 @@ router.get('/', (req, res) => {
  * GET /api/appointments/today
  * Obtiene las citas de hoy
  */
-router.get('/today', (req, res) => {
+router.get('/today', async (req, res) => {
     try {
         const db = getDb();
         const today = new Date().toISOString().split('T')[0];
-        
-        const appointments = db.all(`
+
+        const appointments = await db.all(`
             SELECT 
                 a.*,
                 p.name as patient_name
@@ -74,7 +74,7 @@ router.get('/today', (req, res) => {
             WHERE a.date = ?
             ORDER BY a.time ASC
         `, [today]);
-        
+
         res.json(appointments);
     } catch (error) {
         console.error('Error al obtener citas de hoy:', error);
@@ -86,10 +86,10 @@ router.get('/today', (req, res) => {
  * GET /api/appointments/:id
  * Obtiene una cita específica
  */
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
         const db = getDb();
-        const appointment = db.get(`
+        const appointment = await db.get(`
             SELECT 
                 a.*,
                 p.name as patient_name
@@ -124,7 +124,7 @@ router.post('/', async (req, res) => {
         const db = getDb();
 
         // Verificar que el paciente existe
-        const patient = db.get('SELECT id FROM patients WHERE id = ?', [patient_id]);
+        const patient = await db.get('SELECT id FROM patients WHERE id = ?', [patient_id]);
         if (!patient) {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }

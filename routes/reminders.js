@@ -11,12 +11,12 @@ const { run, query } = require('../config/database');
  * GET /api/reminders
  * Obtiene todos los recordatorios
  */
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const db = getDb();
-        
-        const reminders = db.all(`
-            SELECT 
+
+        const reminders = await db.all(`
+            SELECT
                 r.*,
                 p.name as patient_name,
                 a.date as appointment_date,
@@ -26,7 +26,7 @@ router.get('/', (req, res) => {
             LEFT JOIN appointments a ON r.appointment_id = a.id
             ORDER BY r.reminder_date DESC, r.created_at DESC
         `);
-        
+
         res.json(reminders);
     } catch (error) {
         console.error('Error al obtener recordatorios:', error);
@@ -38,12 +38,12 @@ router.get('/', (req, res) => {
  * GET /api/reminders/unread
  * Obtiene recordatorios no leídos
  */
-router.get('/unread', (req, res) => {
+router.get('/unread', async (req, res) => {
     try {
         const db = getDb();
-        
-        const reminders = db.all(`
-            SELECT 
+
+        const reminders = await db.all(`
+            SELECT
                 r.*,
                 p.name as patient_name,
                 a.date as appointment_date,
@@ -54,7 +54,7 @@ router.get('/unread', (req, res) => {
             WHERE r.is_read = 0
             ORDER BY r.created_at DESC
         `);
-        
+
         res.json(reminders);
     } catch (error) {
         console.error('Error al obtener recordatorios:', error);
@@ -66,14 +66,14 @@ router.get('/unread', (req, res) => {
  * GET /api/reminders/count
  * Cuenta recordatorios no leídos
  */
-router.get('/count', (req, res) => {
+router.get('/count', async (req, res) => {
     try {
         const db = getDb();
-        
-        const result = db.get(`
+
+        const result = await db.get(`
             SELECT COUNT(*) as count FROM reminders WHERE is_read = 0
         `);
-        
+
         res.json({ unread: result?.count || 0 });
     } catch (error) {
         console.error('Error al contar recordatorios:', error);

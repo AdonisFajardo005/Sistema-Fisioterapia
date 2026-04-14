@@ -11,7 +11,7 @@ const { run, query } = require('../config/database');
  * GET /api/payments
  * Obtiene todos los pagos con filtros opcionales
  */
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const db = getDb();
         const { status, patient_id } = req.query;
@@ -47,8 +47,8 @@ router.get('/', (req, res) => {
         query += ' ORDER BY py.created_at DESC';
         
         const payments = params.length > 0 
-            ? db.all(query, params)
-            : db.all(query);
+            ? await db.all(query, params)
+            : await db.all(query);
         
         res.json(payments);
     } catch (error) {
@@ -61,31 +61,31 @@ router.get('/', (req, res) => {
  * GET /api/payments/summary
  * Obtiene resumen de pagos
  */
-router.get('/summary', (req, res) => {
+router.get('/summary', async (req, res) => {
     try {
         const db = getDb();
-        
-        const totalPaid = db.get(`
-            SELECT COALESCE(SUM(amount), 0) as total 
-            FROM payments 
+
+        const totalPaid = await db.get(`
+            SELECT COALESCE(SUM(amount), 0) as total
+            FROM payments
             WHERE status = 'pagado'
         `);
-        
-        const totalPending = db.get(`
-            SELECT COALESCE(SUM(amount), 0) as total 
-            FROM payments 
+
+        const totalPending = await db.get(`
+            SELECT COALESCE(SUM(amount), 0) as total
+            FROM payments
             WHERE status = 'pendiente'
         `);
-        
-        const countPaid = db.get(`
-            SELECT COUNT(*) as count 
-            FROM payments 
+
+        const countPaid = await db.get(`
+            SELECT COUNT(*) as count
+            FROM payments
             WHERE status = 'pagado'
         `);
-        
-        const countPending = db.get(`
-            SELECT COUNT(*) as count 
-            FROM payments 
+
+        const countPending = await db.get(`
+            SELECT COUNT(*) as count
+            FROM payments
             WHERE status = 'pendiente'
         `);
         
@@ -105,11 +105,11 @@ router.get('/summary', (req, res) => {
  * GET /api/payments/:id
  * Obtiene un pago específico
  */
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
         const db = getDb();
-        const payment = db.get(`
-            SELECT 
+        const payment = await db.get(`
+            SELECT
                 py.*,
                 p.name as patient_name,
                 a.date as appointment_date,
@@ -146,7 +146,7 @@ router.post('/', async (req, res) => {
         const db = getDb();
 
         // Verificar que el paciente existe
-        const patient = db.get('SELECT id FROM patients WHERE id = ?', [patient_id]);
+        const patient = await db.get('SELECT id FROM patients WHERE id = ?', [patient_id]);
         if (!patient) {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }

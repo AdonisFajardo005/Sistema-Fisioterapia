@@ -10,10 +10,10 @@ const { run, query } = require('../config/database');
  * GET /api/patients
  * Obtiene todos los pacientes
  */
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const db = getDb();
-        const patients = db.all(`
+        const patients = await db.all(`
             SELECT 
                 p.*,
                 (SELECT COUNT(*) FROM appointments a WHERE a.patient_id = p.id) as total_appointments,
@@ -33,40 +33,40 @@ router.get('/', (req, res) => {
  * GET /api/patients/:id
  * Obtiene un paciente específico con su historial
  */
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
         const db = getDb();
-        const patient = db.get('SELECT * FROM patients WHERE id = ?', [req.params.id]);
-        
+        const patient = await db.get('SELECT * FROM patients WHERE id = ?', [req.params.id]);
+
         if (!patient) {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }
-        
+
         // Obtener historial clínico
-        const clinicalHistory = db.all(`
-            SELECT * FROM clinical_history 
-            WHERE patient_id = ? 
+        const clinicalHistory = await db.all(`
+            SELECT * FROM clinical_history
+            WHERE patient_id = ?
             ORDER BY created_at DESC
         `, [req.params.id]);
-        
+
         // Obtener tratamientos
-        const treatments = db.all(`
-            SELECT * FROM treatments 
-            WHERE patient_id = ? 
+        const treatments = await db.all(`
+            SELECT * FROM treatments
+            WHERE patient_id = ?
             ORDER BY session_date DESC
         `, [req.params.id]);
-        
+
         // Obtener citas
-        const appointments = db.all(`
-            SELECT * FROM appointments 
-            WHERE patient_id = ? 
+        const appointments = await db.all(`
+            SELECT * FROM appointments
+            WHERE patient_id = ?
             ORDER BY date DESC, time DESC
         `, [req.params.id]);
-        
+
         // Obtener pagos
-        const payments = db.all(`
-            SELECT * FROM payments 
-            WHERE patient_id = ? 
+        const payments = await db.all(`
+            SELECT * FROM payments
+            WHERE patient_id = ?
             ORDER BY created_at DESC
         `, [req.params.id]);
         
