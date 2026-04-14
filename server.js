@@ -76,7 +76,15 @@ app.use('/api/patients', isAuthenticated, patientRoutes);
 app.use('/api/appointments', isAuthenticated, appointmentRoutes);
 app.use('/api/treatments', isAuthenticated, treatmentRoutes);
 app.use('/api/payments', isAuthenticated, paymentRoutes);
-app.use('/api/reminders', isAuthenticated, reminderRoutes);
+
+// Middleware condicional para reminders: autenticado EXCEPTO check-email-reminders
+app.use('/api/reminders', (req, res, next) => {
+    if (req.path === '/check-email-reminders') {
+        // Ya manejado arriba como público, saltar
+        return next();
+    }
+    isAuthenticated(req, res, next);
+}, reminderRoutes);
 app.use('/api/clinical-history', isAuthenticated, clinicalHistoryRoutes);
 
 // Ruta principal
