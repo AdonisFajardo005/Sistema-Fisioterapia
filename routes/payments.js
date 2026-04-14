@@ -5,6 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../config/database');
+const { run, query } = require('../config/database');
 
 /**
  * GET /api/payments
@@ -150,7 +151,7 @@ router.post('/', (req, res) => {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }
         
-        const result = db.run(`
+        const result = run(`
             INSERT INTO payments (patient_id, appointment_id, amount, status, payment_method, notes) 
             VALUES (?, ?, ?, ?, ?, ?)
         `, [patient_id, appointment_id || null, amount, status || 'pendiente', payment_method || null, notes || null]);
@@ -174,7 +175,7 @@ router.put('/:id', (req, res) => {
         const { amount, status, payment_method, notes } = req.body;
         
         const db = getDb();
-        const result = db.run(`
+        const result = run(`
             UPDATE payments 
             SET amount = ?, status = ?, payment_method = ?, notes = ?
             WHERE id = ?
@@ -203,9 +204,8 @@ router.patch('/:id/status', (req, res) => {
             return res.status(400).json({ error: 'Estado inválido' });
         }
         
-        const db = getDb();
-        const result = db.run('UPDATE payments SET status = ? WHERE id = ?', [status, req.params.id]);
-        
+        const result = run('UPDATE payments SET status = ? WHERE id = ?', [status, req.params.id]);
+
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Pago no encontrado' });
         }
@@ -223,9 +223,8 @@ router.patch('/:id/status', (req, res) => {
  */
 router.delete('/:id', (req, res) => {
     try {
-        const db = getDb();
-        const result = db.run('DELETE FROM payments WHERE id = ?', [req.params.id]);
-        
+        const result = run('DELETE FROM payments WHERE id = ?', [req.params.id]);
+
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Pago no encontrado' });
         }

@@ -5,6 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../config/database');
+const { run, query } = require('../config/database');
 
 /**
  * GET /api/appointments
@@ -128,13 +129,13 @@ router.post('/', (req, res) => {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }
         
-        const result = db.run(`
+        const result = run(`
             INSERT INTO appointments (patient_id, date, time, notes) 
             VALUES (?, ?, ?, ?)
         `, [patient_id, date, time, notes || null]);
         
         // Crear recordatorio automático
-        db.run(`
+        run(`
             INSERT INTO reminders (patient_id, appointment_id, message, reminder_date) 
             VALUES (?, ?, ?, ?)
         `, [
@@ -163,7 +164,7 @@ router.put('/:id', (req, res) => {
         const { patient_id, date, time, status, notes } = req.body;
         
         const db = getDb();
-        const result = db.run(`
+        const result = run(`
             UPDATE appointments 
             SET patient_id = ?, date = ?, time = ?, status = ?, notes = ?
             WHERE id = ?
@@ -192,9 +193,8 @@ router.patch('/:id/status', (req, res) => {
             return res.status(400).json({ error: 'Estado inválido' });
         }
         
-        const db = getDb();
-        const result = db.run('UPDATE appointments SET status = ? WHERE id = ?', [status, req.params.id]);
-        
+        const result = run('UPDATE appointments SET status = ? WHERE id = ?', [status, req.params.id]);
+
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Cita no encontrada' });
         }
@@ -212,9 +212,8 @@ router.patch('/:id/status', (req, res) => {
  */
 router.delete('/:id', (req, res) => {
     try {
-        const db = getDb();
-        const result = db.run('DELETE FROM appointments WHERE id = ?', [req.params.id]);
-        
+        const result = run('DELETE FROM appointments WHERE id = ?', [req.params.id]);
+
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Cita no encontrada' });
         }

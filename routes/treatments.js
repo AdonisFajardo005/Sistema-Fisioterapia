@@ -5,6 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../config/database');
+const { run, query } = require('../config/database');
 
 /**
  * GET /api/treatments
@@ -87,7 +88,7 @@ router.post('/', (req, res) => {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }
         
-        const result = db.run(`
+        const result = run(`
             INSERT INTO treatments (patient_id, description, session_notes, progress, next_steps, session_date) 
             VALUES (?, ?, ?, ?, ?, ?)
         `, [patient_id, description, session_notes || null, progress || null, next_steps || null, session_date || new Date().toISOString()]);
@@ -111,7 +112,7 @@ router.put('/:id', (req, res) => {
         const { description, session_notes, progress, next_steps, session_date } = req.body;
         
         const db = getDb();
-        const result = db.run(`
+        const result = run(`
             UPDATE treatments 
             SET description = ?, session_notes = ?, progress = ?, next_steps = ?, session_date = ?
             WHERE id = ?
@@ -135,7 +136,7 @@ router.put('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
     try {
         const db = getDb();
-        const result = db.run('DELETE FROM treatments WHERE id = ?', [req.params.id]);
+        const result = run('DELETE FROM treatments WHERE id = ?', [req.params.id]);
         
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Tratamiento no encontrado' });
@@ -185,7 +186,7 @@ router.post('/history', (req, res) => {
         }
         
         const db = getDb();
-        const result = db.run(`
+        const result = run(`
             INSERT INTO clinical_history (patient_id, diagnosis, symptoms, observations) 
             VALUES (?, ?, ?, ?)
         `, [patient_id, diagnosis || null, symptoms || null, observations || null]);
@@ -209,7 +210,7 @@ router.put('/history/:id', (req, res) => {
         const { diagnosis, symptoms, observations } = req.body;
         
         const db = getDb();
-        const result = db.run(`
+        const result = run(`
             UPDATE clinical_history 
             SET diagnosis = ?, symptoms = ?, observations = ?
             WHERE id = ?
@@ -233,7 +234,7 @@ router.put('/history/:id', (req, res) => {
 router.delete('/history/:id', (req, res) => {
     try {
         const db = getDb();
-        const result = db.run('DELETE FROM clinical_history WHERE id = ?', [req.params.id]);
+        const result = run('DELETE FROM clinical_history WHERE id = ?', [req.params.id]);
         
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Entrada de historial no encontrada' });

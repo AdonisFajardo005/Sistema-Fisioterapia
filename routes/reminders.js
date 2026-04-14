@@ -5,6 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../config/database');
+const { run, query } = require('../config/database');
 
 /**
  * GET /api/reminders
@@ -93,7 +94,7 @@ router.post('/', (req, res) => {
         }
         
         const db = getDb();
-        const result = db.run(`
+        const result = run(`
             INSERT INTO reminders (patient_id, appointment_id, message, reminder_date) 
             VALUES (?, ?, ?, ?)
         `, [patient_id || null, appointment_id || null, message, reminder_date]);
@@ -115,7 +116,7 @@ router.post('/', (req, res) => {
 router.patch('/:id/read', (req, res) => {
     try {
         const db = getDb();
-        const result = db.run('UPDATE reminders SET is_read = 1 WHERE id = ?', [req.params.id]);
+        const result = run('UPDATE reminders SET is_read = 1 WHERE id = ?', [req.params.id]);
         
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Recordatorio no encontrado' });
@@ -135,7 +136,7 @@ router.patch('/:id/read', (req, res) => {
 router.patch('/read-all', (req, res) => {
     try {
         const db = getDb();
-        const result = db.run('UPDATE reminders SET is_read = 1 WHERE is_read = 0');
+        const result = run('UPDATE reminders SET is_read = 1 WHERE is_read = 0');
         
         res.json({ 
             message: 'Todos los recordatorios marcados como leídos',
@@ -154,7 +155,7 @@ router.patch('/read-all', (req, res) => {
 router.delete('/:id', (req, res) => {
     try {
         const db = getDb();
-        const result = db.run('DELETE FROM reminders WHERE id = ?', [req.params.id]);
+        const result = run('DELETE FROM reminders WHERE id = ?', [req.params.id]);
         
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Recordatorio no encontrado' });

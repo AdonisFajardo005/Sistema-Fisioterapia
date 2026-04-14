@@ -396,5 +396,6 @@ function exec(sql) {
 
 module.exports = {
     initialize,
+    saveDatabase,
     getDb: () => ({ query, run, get, all, exec })
 };

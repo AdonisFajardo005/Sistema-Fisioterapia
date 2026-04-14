@@ -5,6 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../config/database');
+const { run, query } = require('../config/database');
 
 /**
  * GET /api/clinical-history/patient/:patient_id
@@ -88,7 +89,7 @@ router.post('/', (req, res) => {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }
 
-        const result = db.run(`
+        const result = run(`
             INSERT INTO clinical_history (
                 patient_id,
                 personal_history,
@@ -155,7 +156,7 @@ router.put('/:id', (req, res) => {
         } = req.body;
 
         const db = getDb();
-        const result = db.run(`
+        const result = run(`
             UPDATE clinical_history
             SET 
                 personal_history = ?,
@@ -208,7 +209,7 @@ router.put('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
     try {
         const db = getDb();
-        const result = db.run('DELETE FROM clinical_history WHERE id = ?', [req.params.id]);
+        const result = run('DELETE FROM clinical_history WHERE id = ?', [req.params.id]);
 
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Registro de historial clínico no encontrado' });

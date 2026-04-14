@@ -4,7 +4,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { getDb } = require('../config/database');
+const { run, query } = require('../config/database');
 
 /**
  * GET /api/patients
@@ -95,8 +95,7 @@ router.post('/', (req, res) => {
             return res.status(400).json({ error: 'El nombre es requerido' });
         }
 
-        const db = getDb();
-        const result = db.run(`
+        const result = run(`
             INSERT INTO patients (name, cedula, gender, marital_status, address, phone, email, age, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
@@ -133,8 +132,7 @@ router.put('/:id', (req, res) => {
             return res.status(400).json({ error: 'El nombre es requerido' });
         }
 
-        const db = getDb();
-        const result = db.run(`
+        const result = run(`
             UPDATE patients
             SET name = ?, cedula = ?, gender = ?, marital_status = ?, address = ?, phone = ?, email = ?, age = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -168,8 +166,7 @@ router.put('/:id', (req, res) => {
  */
 router.delete('/:id', (req, res) => {
     try {
-        const db = getDb();
-        const result = db.run('DELETE FROM patients WHERE id = ?', [req.params.id]);
+        const result = run('DELETE FROM patients WHERE id = ?', [req.params.id]);
         
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Paciente no encontrado' });
