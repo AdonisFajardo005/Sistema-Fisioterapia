@@ -7,14 +7,52 @@
 const express = require('express');
 const router = express.Router();
 const cron = require('node-cron');
+const https = require('https');
 const { getDb } = require('../config/database');
 
-// Configurar Brevo (servicio de email)
-let brevoApi = null;
-if (process.env.BREVO_API_KEY) {
-    const brevo = require('@getbrevo/brevo');
-    brevoApi = new brevo.TransactionalEmailsApi();
-    brevoApi.setApiKey(brevo.ApiKeyTypes.apiKey, process.env.BREVO_API_KEY);
+// Función para enviar email con Brevo (API REST directa)
+function sendBrevoEmail(to, subject, html) {
+    return new Promise((resolve, reject) => {
+        const data = JSON.stringify({
+            sender: { email: FROM_EMAIL, name: FROM_NAME },
+            to: [{ email: to }],
+            subject: subject,
+            htmlContent: html
+        });
+
+        const options = {
+            hostname: 'api.brevo.com',
+            port: 443,
+            path: '/v3/smtp/email',
+            method: 'POST',
+            headers: {
+                'api-key': process.env.BREVO_API_KEY,
+                'Content-Type': 'application/json',
+                'Content-Length': data.length
+            }
+        };
+
+        const req = https.request(options, (res) => {
+            let body = '';
+            res.on('data', (chunk) => body += chunk);
+            res.on('end', () => {
+                if (res.statusCode >= 200 && res.statusCode < 300) {
+                    resolve(JSON.parse(body));
+                } else {
+                    reject(new Error(`Brevo API: ${res.statusCode} - ${body}`));
+                }
+            });
+        });
+
+        req.on('error', reject);
+        req.write(data);
+        req.end();
+    });
+}
+
+// Verificar que la API Key esté configurada
+const BREVO_CONFIGURED = !!process.env.BREVO_API_KEY;
+if (BREVO_CONFIGURED) {
     console.log('✓ Servicio de email (Brevo) configurado');
 } else {
     console.log('⚠ BREVO_API_KEY no configurada - los recordatorios por email no funcionarán');
@@ -272,28 +310,19 @@ async function checkAndSendEmails(req, res) {
             `;
 
             try {
-                if (brevoApi) {
+                if (BREVO_CONFIGURED) {
                     console.log(`📧 Enviando email a: ${ADMIN_EMAIL} desde: ${FROM_EMAIL}`);
 
-                    const email = new brevo.SendSmtpEmail();
-                    email.sender = { email: FROM_EMAIL, name: FROM_NAME };
-                    email.to = [{ email: ADMIN_EMAIL }];
-                    email.subject = subject;
-                    email.htmlContent = html;
-
-                    const response = await brevoApi.sendTransacEmail(email);
+                    const result = await sendBrevoEmail(ADMIN_EMAIL, subject, html);
 
                     console.log(`✅ Email enviado para cita con ${appointment.patient_name}`);
-                    console.log(`📬 Email ID: ${response?.response?.body?.messageId || 'N/A'}`);
+                    console.log(`📬 Email ID: ${result?.messageId || 'N/A'}`);
                     emailsSent.push(appointment.patient_name);
                 } else {
                     console.log(`⚠ Email NO enviado (Brevo no configurado) - Cita con ${appointment.patient_name}`);
                 }
             } catch (emailError) {
                 console.error(`❌ Error enviando email para ${appointment.patient_name}:`, emailError.message);
-                if (emailError.response?.body) {
-                    console.error(`📋 Detalle completo:`, JSON.stringify(emailError.response.body));
-                }
             }
         }
         
@@ -313,7 +342,7 @@ async function checkAndSendEmails(req, res) {
 // VERIFICACIÓN AUTOMÁTICA CADA 5 MINUTOS
 // ============================================================
 
-if (brevoApi) {
+if (BREVO_CONFIGURED) {
     // Ejecutar cada 5 minutos: '*/5 * * * *'
     cron.schedule('*/5 * * * *', async () => {
         try {
@@ -348,20 +377,18 @@ if (brevoApi) {
 
                 for (const apt of upcomingAppointments) {
                     try {
-                        const email = new brevo.SendSmtpEmail();
-                        email.sender = { email: FROM_EMAIL, name: FROM_NAME };
-                        email.to = [{ email: ADMIN_EMAIL }];
-                        email.subject = `🔔 Cita en 1 hora: ${apt.patient_name}`;
-                        email.htmlContent = `
+                        await sendBrevoEmail(
+                            ADMIN_EMAIL,
+                            `🔔 Cita en 1 hora: ${apt.patient_name}`,
+                            `
                             <div style="font-family: Arial, sans-serif; padding: 20px;">
                                 <h2 style="color: #667eea;">🏥 Cita en 1 hora</h2>
                                 <p><strong>Paciente:</strong> ${apt.patient_name}</p>
                                 <p><strong>Hora:</strong> ${apt.time}</p>
                                 ${apt.patient_phone ? `<p><strong>Teléfono:</strong> ${apt.patient_phone}</p>` : ''}
                             </div>
-                        `;
-
-                        await brevoApi.sendTransacEmail(email);
+                            `
+                        );
                         console.log(`✅ Email enviado: ${apt.patient_name}`);
                     } catch (e) {
                         console.error(`❌ Error enviando email: ${e.message}`);
