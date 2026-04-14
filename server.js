@@ -68,7 +68,8 @@ app.get('/api/ping', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Ruta pública para verificación de recordatorios (llamada por CronJob.org)
+// Rutas públicas para verificación de recordatorios (llamada por CronJob.org)
+app.get('/api/reminders/check-email-reminders', reminderRoutes);
 app.post('/api/reminders/check-email-reminders', reminderRoutes);
 
 app.use('/api/patients', isAuthenticated, patientRoutes);
