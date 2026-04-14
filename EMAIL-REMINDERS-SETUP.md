@@ -27,7 +27,7 @@ Cada **5 minutos** el sistema revisa automáticamente si hay citas en la próxim
 |-----|-------|
 | `RESEND_API_KEY` | `re_xxxxxxxxxx` (la que copiaste) |
 | `RESEND_FROM_EMAIL` | `onboarding@resend.dev` |
-| `ADMIN_EMAIL` | `adonisfajardo22@gmail.com` |
+| `ADMIN_EMAIL` | `sofiafajardo155@gmail.com` |
 
 3. Clic en **Save changes** → **Redeploy**
 
@@ -55,7 +55,7 @@ Cada **5 minutos** el sistema revisa automáticamente si hay citas en la próxim
    https://sistema-fisioterapia.onrender.com/api/reminders/check-email-reminders
    ```
    (o usa Postman/Thunder Client para enviar un POST a esa URL)
-3. Revisa tu correo (`adonisfajardo22@gmail.com`) → Debería llegar un email con los detalles de la cita
+3. Revisa tu correo (`sofiafajardo155@gmail.com`) → Debería llegar un email con los detalles de la cita
 
 ### Ver logs:
 
