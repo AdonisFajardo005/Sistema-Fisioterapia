@@ -3,6 +3,7 @@ node_modules/
 
 # Base de datos
 database.sqlite
+database.backup.sqlite
 
 # Logs
 *.log
