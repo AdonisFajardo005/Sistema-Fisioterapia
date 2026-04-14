@@ -1,11 +1,25 @@
 /**
- * Rutas de gestión de recordatorios
+ * Rutas de recordatorios y notificaciones por email
+ * Incluye verificación automática de citas próximas
  */
 
 const express = require('express');
 const router = express.Router();
+const cron = require('node-cron');
 const { getDb } = require('../config/database');
-const { run, query } = require('../config/database');
+
+// Configurar Resend (servicio de email)
+let resend = null;
+if (process.env.RESEND_API_KEY) {
+    const { Resend } = require('resend');
+    resend = new Resend(process.env.RESEND_API_KEY);
+    console.log('✓ Servicio de email (Resend) configurado');
+} else {
+    console.log('⚠ RESEND_API_KEY no configurada - los recordatorios por email no funcionarán');
+}
+
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'karen@ejemplo.com';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
 /**
  * GET /api/reminders
@@ -14,17 +28,11 @@ const { run, query } = require('../config/database');
 router.get('/', async (req, res) => {
     try {
         const db = getDb();
-
         const reminders = await db.all(`
-            SELECT
-                r.*,
-                p.name as patient_name,
-                a.date as appointment_date,
-                a.time as appointment_time
+            SELECT r.*, p.name as patient_name, p.phone as patient_phone
             FROM reminders r
             LEFT JOIN patients p ON r.patient_id = p.id
-            LEFT JOIN appointments a ON r.appointment_id = a.id
-            ORDER BY r.reminder_date DESC, r.created_at DESC
+            ORDER BY r.reminder_date DESC
         `);
 
         res.json(reminders);
@@ -41,16 +49,10 @@ router.get('/', async (req, res) => {
 router.get('/unread', async (req, res) => {
     try {
         const db = getDb();
-
         const reminders = await db.all(`
-            SELECT
-                r.*,
-                p.name as patient_name,
-                a.date as appointment_date,
-                a.time as appointment_time
+            SELECT r.*, p.name as patient_name
             FROM reminders r
             LEFT JOIN patients p ON r.patient_id = p.id
-            LEFT JOIN appointments a ON r.appointment_id = a.id
             WHERE r.is_read = 0
             ORDER BY r.created_at DESC
         `);
@@ -64,19 +66,16 @@ router.get('/unread', async (req, res) => {
 
 /**
  * GET /api/reminders/count
- * Cuenta recordatorios no leídos
+ * Obtiene el conteo de recordatorios no leídos
  */
 router.get('/count', async (req, res) => {
     try {
         const db = getDb();
+        const result = await db.get('SELECT COUNT(*) as count FROM reminders WHERE is_read = 0');
 
-        const result = await db.get(`
-            SELECT COUNT(*) as count FROM reminders WHERE is_read = 0
-        `);
-
-        res.json({ unread: result?.count || 0 });
+        res.json({ count: result?.count || 0 });
     } catch (error) {
-        console.error('Error al contar recordatorios:', error);
+        console.error('Error al obtener conteo:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
@@ -124,7 +123,7 @@ router.patch('/:id/read', async (req, res) => {
 
         res.json({ message: 'Recordatorio marcado como leído' });
     } catch (error) {
-        console.error('Error al marcar recordatorio:', error);
+        console.error('Error al actualizar recordatorio:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
@@ -138,12 +137,9 @@ router.patch('/read-all', async (req, res) => {
         const db = getDb();
         const result = await run('UPDATE reminders SET is_read = 1 WHERE is_read = 0');
 
-        res.json({
-            message: 'Todos los recordatorios marcados como leídos',
-            updated: result.changes
-        });
+        res.json({ message: `${result.changes} recordatorios marcados como leídos` });
     } catch (error) {
-        console.error('Error al marcar todos los recordatorios:', error);
+        console.error('Error al actualizar recordatorios:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
@@ -167,5 +163,175 @@ router.delete('/:id', async (req, res) => {
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
+
+/**
+ * POST /api/reminders/check-email-reminders
+ * Verifica citas próximas y envía emails de recordatorio (manual)
+ * Accesible públicamente para ser llamado por CronJob.org
+ */
+router.post('/check-email-reminders', async (req, res) => {
+    try {
+        console.log('📧 Verificando citas próximas para recordatorios...');
+        
+        const db = getDb();
+        
+        // Calcular ventana de tiempo: citas entre ahora y 1 hora después
+        const now = new Date();
+        const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+        
+        const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+        const currentTime = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+        const futureTime = oneHourLater.toTimeString().split(' ')[0].substring(0, 5);
+        
+        // Buscar citas de HOY que están en la próxima hora
+        const upcomingAppointments = await db.all(`
+            SELECT 
+                a.id,
+                a.date,
+                a.time,
+                a.status,
+                p.name as patient_name,
+                p.phone as patient_phone,
+                p.email as patient_email
+            FROM appointments a
+            JOIN patients p ON a.patient_id = p.id
+            WHERE a.date = ?
+            AND a.time >= ?
+            AND a.time <= ?
+            AND a.status != 'cancelada'
+            ORDER BY a.time ASC
+        `, [currentDate, currentTime, futureTime]);
+        
+        if (upcomingAppointments.length === 0) {
+            console.log('✓ No hay citas en la próxima hora');
+            return res.json({ 
+                message: 'No hay citas próximas en la próxima hora',
+                count: 0 
+            });
+        }
+        
+        console.log(`📋 ${upcomingAppointments.length} cita(s) encontradas para la próxima hora`);
+        
+        // Enviar email por cada cita
+        const emailsSent = [];
+        
+        for (const appointment of upcomingAppointments) {
+            const subject = ` Recordatorio: Cita en 1 hora con ${appointment.patient_name}`;
+            const html = `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+                        <h1 style="color: white; margin: 0; text-align: center;">🏥 Recordatorio de Cita</h1>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+                        <p style="font-size: 16px; color: #333;">Hola Dra. Karen,</p>
+                        <p style="font-size: 16px; color: #333;">Tiene una cita programada en <strong>1 hora</strong>:</p>
+                        
+                        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea;">
+                            <h2 style="color: #667eea; margin-top: 0;">👤 ${appointment.patient_name}</h2>
+                            <p style="margin: 10px 0;"><strong>🕐 Hora:</strong> ${appointment.time}</p>
+                            <p style="margin: 10px 0;"><strong>📅 Fecha:</strong> ${appointment.date}</p>
+                            ${appointment.patient_phone ? `<p style="margin: 10px 0;"><strong>📞 Teléfono:</strong> ${appointment.patient_phone}</p>` : ''}
+                            ${appointment.patient_email ? `<p style="margin: 10px 0;"><strong>📧 Email:</strong> ${appointment.patient_email}</p>` : ''}
+                        </div>
+                        
+                        <p style="color: #666; font-size: 14px; margin-top: 20px;">
+                            Este es un recordatorio automático del Sistema de Gestión de Fisioterapia.
+                        </p>
+                    </div>
+                </div>
+            `;
+            
+            try {
+                if (resend) {
+                    await resend.emails.send({
+                        from: FROM_EMAIL,
+                        to: ADMIN_EMAIL,
+                        subject: subject,
+                        html: html
+                    });
+                    emailsSent.push(appointment.patient_name);
+                    console.log(`✅ Email enviado para cita con ${appointment.patient_name}`);
+                } else {
+                    console.log(`⚠ Email NO enviado (Resend no configurado) - Cita con ${appointment.patient_name}`);
+                }
+            } catch (emailError) {
+                console.error(`❌ Error enviando email para ${appointment.patient_name}:`, emailError.message);
+            }
+        }
+        
+        res.json({
+            message: `${upcomingAppointments.length} cita(s) verificadas, ${emailsSent.length} email(s) enviados`,
+            appointments: upcomingAppointments.map(a => a.patient_name),
+            emailsSent: emailsSent
+        });
+        
+    } catch (error) {
+        console.error('Error en verificación de recordatorios:', error);
+        res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+    }
+});
+
+// ============================================================
+// VERIFICACIÓN AUTOMÁTICA CADA 5 MINUTOS
+// ============================================================
+
+if (resend) {
+    // Ejecutar cada 5 minutos: '*/5 * * * *'
+    cron.schedule('*/5 * * * *', async () => {
+        try {
+            console.log('⏰ [AutoCheck] Verificando citas próximas...');
+            
+            const db = getDb();
+            const now = new Date();
+            const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+            
+            const currentDate = now.toISOString().split('T')[0];
+            const currentTime = now.toTimeString().split(' ')[0].substring(0, 5);
+            const futureTime = oneHourLater.toTimeString().split(' ')[0].substring(0, 5);
+            
+            const upcomingAppointments = await db.all(`
+                SELECT a.id, a.date, a.time, p.name as patient_name, p.phone as patient_phone
+                FROM appointments a
+                JOIN patients p ON a.patient_id = p.id
+                WHERE a.date = ?
+                AND a.time >= ?
+                AND a.time <= ?
+                AND a.status != 'cancelada'
+                ORDER BY a.time ASC
+            `, [currentDate, currentTime, futureTime]);
+            
+            if (upcomingAppointments.length > 0) {
+                console.log(`📧 [AutoCheck] ${upcomingAppointments.length} cita(s) próxima(s). Enviando emails...`);
+                
+                for (const apt of upcomingAppointments) {
+                    try {
+                        await resend.emails.send({
+                            from: FROM_EMAIL,
+                            to: ADMIN_EMAIL,
+                            subject: `🔔 Cita en 1 hora: ${apt.patient_name}`,
+                            html: `
+                                <div style="font-family: Arial, sans-serif; padding: 20px;">
+                                    <h2 style="color: #667eea;">🏥 Cita en 1 hora</h2>
+                                    <p><strong>Paciente:</strong> ${apt.patient_name}</p>
+                                    <p><strong>Hora:</strong> ${apt.time}</p>
+                                    ${apt.patient_phone ? `<p><strong>Teléfono:</strong> ${apt.patient_phone}</p>` : ''}
+                                </div>
+                            `
+                        });
+                        console.log(`✅ Email enviado: ${apt.patient_name}`);
+                    } catch (e) {
+                        console.error(`❌ Error enviando email: ${e.message}`);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('❌ [AutoCheck] Error:', error.message);
+        }
+    });
+    
+    console.log('⏰ Verificación automática de citas activada (cada 5 minutos)');
+} else {
+    console.log('⚠ Verificación automática desactivada (falta RESEND_API_KEY)');
+}
 
 module.exports = router;

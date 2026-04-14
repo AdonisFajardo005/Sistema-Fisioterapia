@@ -62,6 +62,10 @@ function isAuthenticated(req, res, next) {
 
 // Rutas
 app.use('/api/auth', authRoutes);
+
+// Ruta pública para verificación de recordatorios (llamada por CronJob.org)
+app.post('/api/reminders/check-email-reminders', reminderRoutes);
+
 app.use('/api/patients', isAuthenticated, patientRoutes);
 app.use('/api/appointments', isAuthenticated, appointmentRoutes);
 app.use('/api/treatments', isAuthenticated, treatmentRoutes);
