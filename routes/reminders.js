@@ -270,19 +270,28 @@ async function checkAndSendEmails(req, res) {
             
             try {
                 if (resend) {
-                    await resend.emails.send({
+                    console.log(`📧 Enviando email a: ${ADMIN_EMAIL} desde: ${FROM_EMAIL}`);
+                    
+                    const { data, error } = await resend.emails.send({
                         from: FROM_EMAIL,
                         to: ADMIN_EMAIL,
                         subject: subject,
                         html: html
                     });
-                    emailsSent.push(appointment.patient_name);
-                    console.log(`✅ Email enviado para cita con ${appointment.patient_name}`);
+
+                    if (error) {
+                        console.error(`❌ Error Resend para ${appointment.patient_name}:`, JSON.stringify(error));
+                    } else {
+                        console.log(`✅ Email enviado para cita con ${appointment.patient_name}`);
+                        console.log(`📬 Email ID: ${data?.id}, Status: ${data?.status || 'N/A'}`);
+                        emailsSent.push(appointment.patient_name);
+                    }
                 } else {
                     console.log(`⚠ Email NO enviado (Resend no configurado) - Cita con ${appointment.patient_name}`);
                 }
             } catch (emailError) {
                 console.error(`❌ Error enviando email para ${appointment.patient_name}:`, emailError.message);
+                console.error(`📋 Detalle completo:`, JSON.stringify(emailError));
             }
         }
         
