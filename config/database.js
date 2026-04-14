@@ -11,10 +11,10 @@ const bcrypt = require('bcryptjs');
 class PGDatabase {
     constructor(connectionString) {
         const { Pool } = require('pg');
-        // Usar SSL 'require' para producción (Neon, Supabase, etc.)
+        // Configuración SSL para proveedores cloud (Neon, Supabase, Render)
         this.pool = new Pool({
             connectionString,
-            ssl: 'require'
+            ssl: { rejectUnauthorized: false }
         });
         this.name = 'PostgreSQL';
     }
