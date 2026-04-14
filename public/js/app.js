@@ -100,20 +100,31 @@ const api = {
 function formatDate(dateString) {
     if (!dateString) return '';
     
-    // Si es solo una fecha (YYYY-MM-DD), tratarla como fecha local para evitar problemas de timezone
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        const [year, month, day] = dateString.split('-');
-        // Crear fecha en timezone local (mes es 0-indexed)
-        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        return date.toLocaleDateString('es-ES', {
+    // Extraer solo la parte de la fecha (YYYY-MM-DD) de cualquier formato
+    let datePart;
+    if (dateString.includes('T')) {
+        // Es un timestamp ISO: "2026-04-14T00:00:00.000Z"
+        datePart = dateString.split('T')[0];
+    } else {
+        // Es solo fecha: "2026-04-14"
+        datePart = dateString.substring(0, 10);
+    }
+    
+    // Verificar que es una fecha válida
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+        // Formato desconocido, usar comportamiento normal
+        return new Date(dateString).toLocaleDateString('es-ES', {
             year: 'numeric',
             month: 'short',
             day: 'numeric'
         });
     }
     
-    // Para fechas completas con hora, usar el comportamiento normal
-    const date = new Date(dateString);
+    // Crear fecha interpretándola como fecha LOCAL (no UTC)
+    // Esto evita que se desplace un día atrás por la conversión de timezone
+    const [year, month, day] = datePart.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    
     return date.toLocaleDateString('es-ES', {
         year: 'numeric',
         month: 'short',
