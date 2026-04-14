@@ -98,11 +98,26 @@ const api = {
 };
 
 function formatDate(dateString) {
+    if (!dateString) return '';
+    
+    // Si es solo una fecha (YYYY-MM-DD), tratarla como fecha local para evitar problemas de timezone
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-');
+        // Crear fecha en timezone local (mes es 0-indexed)
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        return date.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+    
+    // Para fechas completas con hora, usar el comportamiento normal
     const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+    return date.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
     });
 }
 
