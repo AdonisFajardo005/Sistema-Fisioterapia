@@ -514,8 +514,16 @@ if (isProduction) {
     console.log('💾 Modo: SQLite (desarrollo local)');
 }
 
+// Exportar funciones directas Y como getDb
 module.exports = {
     initialize: () => db.initialize(),
+    // Funciones directas (para usar en rutas)
+    query: (...args) => db.query(...args),
+    run: (...args) => db.run(...args),
+    get: (...args) => db.get(...args),
+    all: (...args) => db.all(...args),
+    exec: (...args) => db.exec(...args),
+    // También exportar como getDb (compatibilidad)
     getDb: () => ({
         query: (...args) => db.query(...args),
         run: (...args) => db.run(...args),
