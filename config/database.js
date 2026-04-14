@@ -1,34 +1,20 @@
 /**
  * Configuración de base de datos UNIVERSAL
- * Usa PostgreSQL en producción (nube) y SQLite en desarrollo (local)
- * 
- * Producción: DATABASE_URL en .env → PostgreSQL (sobrevive a deploys)
- * Desarrollo: Sin DATABASE_URL → SQLite local
+ * PostgreSQL en producción (Neon) / SQLite en desarrollo local
  */
 
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-// Interfaz abstracta para ambos adaptadores
-class DatabaseAdapter {
-    async initialize() { throw new Error('Not implemented'); }
-    async query(sql, params = []) { throw new Error('Not implemented'); }
-    async run(sql, params = []) { throw new Error('Not implemented'); }
-    async get(sql, params = []) { throw new Error('Not implemented'); }
-    async all(sql, params = []) { throw new Error('Not implemented'); }
-    async exec(sql) { throw new Error('Not implemented'); }
-    async close() { /* opcional */ }
-}
-
-// Adaptador PostgreSQL (producción)
-class PostgreSQLAdapter extends DatabaseAdapter {
+// ==================== PostgreSQL Adapter ====================
+class PGDatabase {
     constructor(connectionString) {
-        super();
         const { Pool } = require('pg');
         this.pool = new Pool({
             connectionString,
-            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+            ssl: { rejectUnauthorized: false }
         });
+        this.name = 'PostgreSQL';
     }
 
     async initialize() {
@@ -126,9 +112,8 @@ class PostgreSQLAdapter extends DatabaseAdapter {
     }
 
     async createDefaultUser() {
-        const result = await this.pool.query('SELECT COUNT(*) as count FROM users');
+        const result = await this.pool.query('SELECT COUNT(*) FROM users');
         const count = parseInt(result.rows[0].count);
-
         if (count === 0) {
             const hashedPassword = bcrypt.hashSync('karen2024', 10);
             await this.pool.query(
@@ -145,20 +130,12 @@ class PostgreSQLAdapter extends DatabaseAdapter {
     }
 
     async run(sql, params = []) {
-        // Para INSERT, obtener el ID retornado
         if (sql.trim().toUpperCase().startsWith('INSERT')) {
             const result = await this.pool.query(sql + ' RETURNING id', params);
-            return {
-                lastInsertRowid: result.rows[0]?.id || null,
-                changes: result.rowCount || 0
-            };
+            return { lastInsertRowid: result.rows[0]?.id || null, changes: result.rowCount || 0 };
         }
-        
         const result = await this.pool.query(sql, params);
-        return {
-            lastInsertRowid: null,
-            changes: result.rowCount || 0
-        };
+        return { lastInsertRowid: null, changes: result.rowCount || 0 };
     }
 
     async get(sql, params = []) {
@@ -180,308 +157,147 @@ class PostgreSQLAdapter extends DatabaseAdapter {
     }
 }
 
-// Adaptador SQLite (desarrollo)
-class SQLiteAdapter extends DatabaseAdapter {
-    constructor(initSqlJs, fs) {
-        super();
-        this.initSqlJs = initSqlJs;
-        this.fs = fs;
+// ==================== SQLite Adapter ====================
+class SQLiteDatabase {
+    constructor() {
+        this.SQL = null;
+        this.db = null;
+        this.fs = require('fs-extra');
         this.DB_PATH = path.join(__dirname, '..', 'database.sqlite');
         this.DB_BACKUP_PATH = path.join(__dirname, '..', 'database.backup.sqlite');
-        this.db = null;
-        this.SQL = null;
         this.isSaving = false;
         this.savePending = false;
+        this.name = 'SQLite';
     }
 
     async initialize() {
-        this.SQL = await this.initSqlJs();
+        const initSqlJs = require('sql.js');
+        this.SQL = await initSqlJs();
 
-        let loadedSuccessfully = false;
-
-        // Intentar cargar la base de datos principal
+        let loaded = false;
         try {
             if (this.fs.existsSync(this.DB_PATH)) {
                 const buffer = this.fs.readFileSync(this.DB_PATH);
                 this.db = new this.SQL.Database(buffer);
-                
-                if (this.verifyDatabaseIntegrity(this.db)) {
-                    loadedSuccessfully = true;
-                    console.log('✓ Base de datos SQLite cargada y verificada');
+                if (this.verifyIntegrity()) {
+                    loaded = true;
+                    console.log('✓ SQLite cargada y verificada');
                 } else {
-                    console.warn('⚠ Base de datos principal corrupta');
                     this.db = null;
                 }
             }
         } catch (e) {
-            console.warn('⚠ Error al cargar base de datos principal:', e.message);
             this.db = null;
         }
 
-        // Si falla, intentar cargar desde backup
-        if (!loadedSuccessfully) {
+        if (!loaded) {
             try {
                 if (this.fs.existsSync(this.DB_BACKUP_PATH)) {
                     const buffer = this.fs.readFileSync(this.DB_BACKUP_PATH);
                     this.db = new this.SQL.Database(buffer);
-                    
-                    if (this.verifyDatabaseIntegrity(this.db)) {
-                        loadedSuccessfully = true;
-                        console.log('✓ Base de datos recuperada desde backup');
+                    if (this.verifyIntegrity()) {
+                        loaded = true;
+                        console.log('✓ SQLite recuperada desde backup');
                         this.fs.copyFileSync(this.DB_BACKUP_PATH, this.DB_PATH);
-                    } else {
-                        this.db = null;
                     }
                 }
-            } catch (backupError) {
-                console.warn('⚠ No se pudo cargar backup:', backupError.message);
-            }
+            } catch (e) { /* ignore */ }
         }
 
-        // Si ambos fallan, crear nueva base de datos
-        if (!loadedSuccessfully || !this.db) {
+        if (!loaded || !this.db) {
             this.db = new this.SQL.Database();
-            console.log('✓ Nueva base de datos SQLite creada');
+            console.log('✓ Nueva SQLite creada');
         }
 
-        await this.createTables();
-        await this.createDefaultUser();
+        this.createTables();
+        this.createDefaultUser();
         this.saveDatabase();
         this.startAutoSave();
-
-        console.log('✓ SQLite inicializado correctamente');
+        console.log('✓ SQLite inicializada');
     }
 
-    verifyDatabaseIntegrity(database) {
+    verifyIntegrity() {
         try {
-            const result = database.exec('SELECT name FROM sqlite_master WHERE type="table"');
-            if (!result || !result[0]) return false;
-            return true;
-        } catch (error) {
-            return false;
-        }
+            const r = this.db.exec('SELECT name FROM sqlite_master WHERE type="table"');
+            return r && r[0] && r[0].values.length > 0;
+        } catch (e) { return false; }
     }
 
     startAutoSave() {
-        this.autoSaveInterval = setInterval(() => {
-            try {
-                this.saveDatabase();
-            } catch (error) {
-                console.error('[AutoSave] Error:', error.message);
-            }
-        }, 30000);
-
-        const originalSigint = process.listeners('SIGINT');
-        process.on('SIGINT', () => {
-            clearInterval(this.autoSaveInterval);
-            this.saveDatabase();
-            process.exit(0);
-        });
-
-        process.on('SIGTERM', () => {
-            clearInterval(this.autoSaveInterval);
-            this.saveDatabase();
-            process.exit(0);
-        });
+        setInterval(() => { try { this.saveDatabase(); } catch(e) {} }, 30000);
+        process.on('SIGINT', () => { this.saveDatabase(); process.exit(0); });
+        process.on('SIGTERM', () => { this.saveDatabase(); process.exit(0); });
     }
 
     saveDatabase() {
-        if (this.isSaving) {
-            this.savePending = true;
-            return;
-        }
-
+        if (this.isSaving) { this.savePending = true; return; }
         this.isSaving = true;
-
         try {
-            const data = this.db.export();
-            const buffer = Buffer.from(data);
-            const tempPath = this.DB_PATH + '.tmp';
-
+            const buffer = Buffer.from(this.db.export());
+            const tmp = this.DB_PATH + '.tmp';
             if (this.fs.existsSync(this.DB_PATH)) {
-                try {
-                    this.fs.copyFileSync(this.DB_PATH, this.DB_BACKUP_PATH);
-                } catch (e) {
-                    // ignore backup errors
-                }
+                try { this.fs.copyFileSync(this.DB_PATH, this.DB_BACKUP_PATH); } catch(e) {}
             }
-
-            this.fs.writeFileSync(tempPath, buffer);
-
-            if (!this.fs.existsSync(tempPath) || this.fs.statSync(tempPath).size === 0) {
-                throw new Error('Archivo temporal vacío');
-            }
-
-            try {
-                if (this.fs.existsSync(this.DB_PATH)) {
-                    this.fs.unlinkSync(this.DB_PATH);
-                }
-                this.fs.renameSync(tempPath, this.DB_PATH);
-            } catch (renameError) {
-                this.fs.copyFileSync(tempPath, this.DB_PATH);
-                this.fs.unlinkSync(tempPath);
-            }
-        } catch (error) {
-            console.error('✗ Error al guardar SQLite:', error.message);
+            this.fs.writeFileSync(tmp, buffer);
+            if (this.fs.existsSync(this.DB_PATH)) this.fs.unlinkSync(this.DB_PATH);
+            this.fs.renameSync(tmp, this.DB_PATH);
+        } catch (e) {
+            console.error('Error guardando SQLite:', e.message);
         } finally {
             this.isSaving = false;
-            if (this.savePending) {
-                this.savePending = false;
-                this.saveDatabase();
-            }
+            if (this.savePending) { this.savePending = false; this.saveDatabase(); }
         }
     }
 
-    async createTables() {
+    createTables() {
         const tables = [
-            `CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                name TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )`,
-            `CREATE TABLE IF NOT EXISTS patients (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                cedula TEXT UNIQUE,
-                gender TEXT,
-                marital_status TEXT,
-                address TEXT,
-                phone TEXT,
-                email TEXT,
-                age INTEGER,
-                notes TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )`,
-            `CREATE TABLE IF NOT EXISTS clinical_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                patient_id INTEGER NOT NULL,
-                personal_history TEXT,
-                pathological_history TEXT,
-                pain_scale INTEGER,
-                nutrition TEXT,
-                hydration TEXT,
-                sleep TEXT,
-                physical_activity TEXT,
-                surgeries TEXT,
-                consultation_reason TEXT,
-                previous_injuries TEXT,
-                diagnosis TEXT,
-                symptoms TEXT,
-                observations TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
-            )`,
-            `CREATE TABLE IF NOT EXISTS treatments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                patient_id INTEGER NOT NULL,
-                description TEXT NOT NULL,
-                session_notes TEXT,
-                progress TEXT,
-                next_steps TEXT,
-                session_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
-            )`,
-            `CREATE TABLE IF NOT EXISTS appointments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                patient_id INTEGER NOT NULL,
-                date TEXT NOT NULL,
-                time TEXT NOT NULL,
-                status TEXT DEFAULT 'pendiente',
-                notes TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
-            )`,
-            `CREATE TABLE IF NOT EXISTS payments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                patient_id INTEGER NOT NULL,
-                appointment_id INTEGER,
-                amount REAL NOT NULL,
-                status TEXT DEFAULT 'pendiente',
-                payment_method TEXT,
-                notes TEXT,
-                payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
-                FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE SET NULL
-            )`,
-            `CREATE TABLE IF NOT EXISTS reminders (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                patient_id INTEGER,
-                appointment_id INTEGER,
-                message TEXT NOT NULL,
-                reminder_date TEXT NOT NULL,
-                is_read INTEGER DEFAULT 0,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
-                FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
-            )`
+            `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, name TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+            `CREATE TABLE IF NOT EXISTS patients (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, cedula TEXT UNIQUE, gender TEXT, marital_status TEXT, address TEXT, phone TEXT, email TEXT, age INTEGER, notes TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+            `CREATE TABLE IF NOT EXISTS clinical_history (id INTEGER PRIMARY KEY AUTOINCREMENT, patient_id INTEGER NOT NULL, personal_history TEXT, pathological_history TEXT, pain_scale INTEGER, nutrition TEXT, hydration TEXT, sleep TEXT, physical_activity TEXT, surgeries TEXT, consultation_reason TEXT, previous_injuries TEXT, diagnosis TEXT, symptoms TEXT, observations TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE)`,
+            `CREATE TABLE IF NOT EXISTS treatments (id INTEGER PRIMARY KEY AUTOINCREMENT, patient_id INTEGER NOT NULL, description TEXT NOT NULL, session_notes TEXT, progress TEXT, next_steps TEXT, session_date DATETIME DEFAULT CURRENT_TIMESTAMP, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE)`,
+            `CREATE TABLE IF NOT EXISTS appointments (id INTEGER PRIMARY KEY AUTOINCREMENT, patient_id INTEGER NOT NULL, date TEXT NOT NULL, time TEXT NOT NULL, status TEXT DEFAULT 'pendiente', notes TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE)`,
+            `CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY AUTOINCREMENT, patient_id INTEGER NOT NULL, appointment_id INTEGER, amount REAL NOT NULL, status TEXT DEFAULT 'pendiente', payment_method TEXT, notes TEXT, payment_date DATETIME DEFAULT CURRENT_TIMESTAMP, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE, FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE SET NULL)`,
+            `CREATE TABLE IF NOT EXISTS reminders (id INTEGER PRIMARY KEY AUTOINCREMENT, patient_id INTEGER, appointment_id INTEGER, message TEXT NOT NULL, reminder_date TEXT NOT NULL, is_read INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE, FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE)`
         ];
-
         tables.forEach(sql => this.db.run(sql));
     }
 
-    async createDefaultUser() {
-        const result = this.db.exec('SELECT COUNT(*) as count FROM users');
+    createDefaultUser() {
+        const result = this.db.exec('SELECT COUNT(*) FROM users');
         const count = result[0]?.values[0][0] || 0;
-
         if (count === 0) {
             const hashedPassword = bcrypt.hashSync('karen2024', 10);
-            this.db.run(
-                'INSERT INTO users (username, password, name) VALUES (?, ?, ?)',
-                ['karen', hashedPassword, 'Dra. Karen Fajardo']
-            );
+            this.db.run('INSERT INTO users (username, password, name) VALUES (?, ?, ?)', ['karen', hashedPassword, 'Dra. Karen Fajardo']);
             console.log('✓ Usuario por defecto creado (karen / karen2024)');
         }
     }
 
     query(sql, params = []) {
-        try {
-            const stmt = this.db.prepare(sql);
-            if (params.length > 0) stmt.bind(params);
-
-            const results = [];
-            while (stmt.step()) {
-                results.push(stmt.getAsObject());
-            }
-            stmt.free();
-            return results;
-        } catch (error) {
-            console.error('Error en query:', error);
-            throw error;
-        }
+        const stmt = this.db.prepare(sql);
+        if (params.length > 0) stmt.bind(params);
+        const results = [];
+        while (stmt.step()) results.push(stmt.getAsObject());
+        stmt.free();
+        return results;
     }
 
     run(sql, params = []) {
+        let lastID = 0;
         try {
-            let lastID = 0;
-            try {
-                const beforeResult = this.db.exec('SELECT last_insert_rowid() as id');
-                lastID = beforeResult[0]?.values[0][0] || 0;
-            } catch (e) { /* ignore */ }
-
-            this.db.run(sql, params);
-            this.saveDatabase();
-
-            try {
-                const result = this.db.exec('SELECT last_insert_rowid() as id');
-                lastID = result[0]?.values[0][0] || 0;
-            } catch (e) { /* ignore */ }
-
-            return { lastInsertRowid: lastID, changes: 1 };
-        } catch (error) {
-            console.error('Error en run:', error);
-            throw error;
-        }
+            const before = this.db.exec('SELECT last_insert_rowid() as id');
+            lastID = before[0]?.values[0][0] || 0;
+        } catch(e) {}
+        this.db.run(sql, params);
+        this.saveDatabase();
+        try {
+            const after = this.db.exec('SELECT last_insert_rowid() as id');
+            lastID = after[0]?.values[0][0] || 0;
+        } catch(e) {}
+        return { lastInsertRowid: lastID, changes: 1 };
     }
 
     get(sql, params = []) {
-        const results = this.query(sql, params);
-        return results[0] || null;
+        return this.query(sql, params)[0] || null;
     }
 
     all(sql, params = []) {
@@ -494,46 +310,39 @@ class SQLiteAdapter extends DatabaseAdapter {
     }
 }
 
-// ==================== EXPORT ====================
+// ==================== DETECT MODE & EXPORT ====================
 
-// Detectar modo y crear adaptador
-let db;
 const isProduction = process.env.NODE_ENV === 'production' || process.env.DATABASE_URL;
+let dbInstance;
 
 if (isProduction) {
     if (!process.env.DATABASE_URL) {
         console.error('❌ ERROR: DATABASE_URL no está definido en producción');
         process.exit(1);
     }
-    db = new PostgreSQLAdapter(process.env.DATABASE_URL);
+    dbInstance = new PGDatabase(process.env.DATABASE_URL);
     console.log('🌐 Modo: PostgreSQL (producción)');
 } else {
-    const initSqlJs = require('sql.js');
-    const fs = require('fs-extra');
-    db = new SQLiteAdapter(initSqlJs, fs);
+    dbInstance = new SQLiteDatabase();
     console.log('💾 Modo: SQLite (desarrollo local)');
 }
 
-// Exportar funciones directas Y como getDb
+// Exportar funciones como métodos del módulo
 module.exports = {
-    initialize: () => db.initialize(),
-    // Funciones directas (para usar en rutas)
-    query: (...args) => db.query(...args),
-    run: (...args) => db.run(...args),
-    get: (...args) => db.get(...args),
-    all: (...args) => db.all(...args),
-    exec: (...args) => db.exec(...args),
-    // También exportar como getDb (compatibilidad)
+    initialize: () => dbInstance.initialize(),
+    query: (sql, params) => dbInstance.query(sql, params),
+    run: (sql, params) => dbInstance.run(sql, params),
+    get: (sql, params) => dbInstance.get(sql, params),
+    all: (sql, params) => dbInstance.all(sql, params),
+    exec: (sql) => dbInstance.exec(sql),
     getDb: () => ({
-        query: (...args) => db.query(...args),
-        run: (...args) => db.run(...args),
-        get: (...args) => db.get(...args),
-        all: (...args) => db.all(...args),
-        exec: (...args) => db.exec(...args)
+        query: (sql, params) => dbInstance.query(sql, params),
+        run: (sql, params) => dbInstance.run(sql, params),
+        get: (sql, params) => dbInstance.get(sql, params),
+        all: (sql, params) => dbInstance.all(sql, params),
+        exec: (sql) => dbInstance.exec(sql)
     }),
-    saveDatabase: () => {
-        if (db.saveDatabase) db.saveDatabase();
-    },
-    close: () => db.close(),
+    saveDatabase: () => { if (dbInstance.saveDatabase) dbInstance.saveDatabase(); },
+    close: () => { if (dbInstance.close) dbInstance.close(); },
     isProduction
 };
