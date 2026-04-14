@@ -181,16 +181,26 @@ router.get('/check-email-reminders', async (req, res) => {
 async function checkAndSendEmails(req, res) {
     try {
         console.log('📧 Verificando citas próximas para recordatorios...');
-        
+
         const db = getDb();
+
+        // Obtener hora actual del servidor (UTC en Render)
+        const nowUTC = new Date();
         
-        // Calcular ventana de tiempo: citas entre ahora y 1 hora después
-        const now = new Date();
-        const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+        // Ajustar a hora local de Centroamérica (UTC-6)
+        // Si estás en otro país, cambia el offset: -5 para Colombia, -3 para Argentina, etc.
+        const offsetHours = -6; 
+        const localNow = new Date(nowUTC.getTime() + (offsetHours * 60 * 60 * 1000));
         
-        const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
-        const currentTime = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
-        const futureTime = oneHourLater.toTimeString().split(' ')[0].substring(0, 5);
+        const oneHourLater = new Date(localNow.getTime() + 60 * 60 * 1000);
+
+        const currentDate = localNow.toISOString().split('T')[0]; // YYYY-MM-DD
+        const currentTime = localNow.toISOString().split('T')[1].substring(0, 5); // HH:MM
+        const futureTime = oneHourLater.toISOString().split('T')[1].substring(0, 5);
+
+        console.log(`🕐 Hora UTC servidor: ${nowUTC.toISOString()}`);
+        console.log(`🕐 Hora local ajustada: ${localNow.toISOString()}, Fecha: ${currentDate}`);
+        console.log(`🔍 Buscando citas entre ${currentTime} y ${futureTime}`);
         
         // Buscar citas de HOY que están en la próxima hora
         const upcomingAppointments = await db.all(`
@@ -289,14 +299,19 @@ if (resend) {
     cron.schedule('*/5 * * * *', async () => {
         try {
             console.log('⏰ [AutoCheck] Verificando citas próximas...');
-            
+
             const db = getDb();
-            const now = new Date();
-            const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+            const nowUTC = new Date();
             
-            const currentDate = now.toISOString().split('T')[0];
-            const currentTime = now.toTimeString().split(' ')[0].substring(0, 5);
-            const futureTime = oneHourLater.toTimeString().split(' ')[0].substring(0, 5);
+            // Ajustar a hora local de Centroamérica (UTC-6)
+            const offsetHours = -6; 
+            const localNow = new Date(nowUTC.getTime() + (offsetHours * 60 * 60 * 1000));
+            
+            const oneHourLater = new Date(localNow.getTime() + 60 * 60 * 1000);
+
+            const currentDate = localNow.toISOString().split('T')[0];
+            const currentTime = localNow.toISOString().split('T')[1].substring(0, 5);
+            const futureTime = oneHourLater.toISOString().split('T')[1].substring(0, 5);
             
             const upcomingAppointments = await db.all(`
                 SELECT a.id, a.date, a.time, p.name as patient_name, p.phone as patient_phone
